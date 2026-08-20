@@ -5,7 +5,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: cinema_db
-      MYSQL_USER: app_user
+      MYSQL_USER: cinema_user
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
     command: --ssl=0 --require_secure_transport=OFF
     volumes:
@@ -38,9 +38,9 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      MYSQL_USER: app_user
+      MYSQL_USER: cinema_user
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
-      MYSQL_DATABASE: app_db
+      MYSQL_DATABASE: cinema_db
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.development}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
   
