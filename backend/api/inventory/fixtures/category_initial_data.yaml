@@ -1,0 +1,14 @@
+- model: api.inventory.Category
+# ↓↓プライマリーキー(pk)は自動採番されるので任意でfieldの前に書き込む
+# pk: 操作したいキー
+  fields:
+    name: メンズ
+    parent_category: null
+- model: api.inventory.Category
+  fields:
+    name: レディース
+    parent_category: null
+- model: api.inventory.Category
+  fields:
+    name: キッズ
+    parent_category: null
