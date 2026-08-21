@@ -5,8 +5,8 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/inventory/:path*',
-        destination: 'http://backend:8000/api/inventory/:path*/'
+        source: '/api/cinema/:path*',
+        destination: 'http://backend:8000/api/cinema/:path*/'
       },
     ]
   },

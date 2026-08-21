@@ -9,9 +9,9 @@ export default function Home() {
 
   useEffect(() => {
     axios
-      .get("/api/inventory/me/")
+      .get("/api/cinema/me/")
       .then(() => {
-        router.replace("/inventory/products/");
+        router.replace("/cinema/products/");
       })
       .catch(() => {
         router.replace("/login");

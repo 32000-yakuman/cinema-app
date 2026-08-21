@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.core.files.storage import default_storage
 
-from api.inventory.models import Sales, SalesFile, Status
+from api.cinema.models import Sales, SalesFile, Status
 
 def execute(download_history):
     with transaction.atomic():

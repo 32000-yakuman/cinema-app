@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class InventoryConfig(AppConfig):
+class cinemaConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "api.inventory"
+    name = "api.cinema"

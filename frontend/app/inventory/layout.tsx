@@ -30,7 +30,7 @@ const defaultTheme = createTheme ({
     },
 })
 
-export default function InventoryLayout({ children } : { children: React.ReactNode }) {
+export default function cinemaLayout({ children } : { children: React.ReactNode }) {
     const [open, setOpen] = useState(false)
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const router = useRouter()
@@ -38,7 +38,7 @@ export default function InventoryLayout({ children } : { children: React.ReactNo
     // 🔥 Django にログイン状態を問い合わせる
     useEffect(() => {
         axios
-            .get("/api/inventory/me/", { withCredentials: true })
+            .get("/api/cinema/me/", { withCredentials: true })
             .then(() => setIsLoggedIn(true))
             .catch(() => setIsLoggedIn(false))
     }, [])
@@ -49,7 +49,7 @@ export default function InventoryLayout({ children } : { children: React.ReactNo
     
     const handleLogout = async () => {
         try {
-            await axios.post("/api/inventory/logout/")
+            await axios.post("/api/cinema/logout/")
         } finally {
             router.replace('/login')
         }
@@ -64,13 +64,13 @@ export default function InventoryLayout({ children } : { children: React.ReactNo
             <Toolbar />
             <Divider />
             <List>
-                <ListItem component="a" href="/inventory/products" disablePadding>
+                <ListItem component="a" href="/cinema/products" disablePadding>
                     <ListItemButton>
                         <ListItemText primary="商品一覧" />
                     </ListItemButton>
                 </ListItem>
                 <Divider />
-                <ListItem component="a" href="/inventory/import_sales" disablePadding>
+                <ListItem component="a" href="/cinema/import_sales" disablePadding>
                     <ListItemButton>
                         <ListItemText primary="売上一括登録" />
                     </ListItemButton>

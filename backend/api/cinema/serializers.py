@@ -25,7 +25,7 @@ class SalesSerializer(serializers.ModelSerializer):
 
 # 仕入れ・売上情報の一覧
 # Modelに依存しないため、個別にフィールドを定義している
-class InventorySerializer(serializers.Serializer):
+class cinemaSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     unit = serializers.IntegerField()
     quantity = serializers.IntegerField()

@@ -37,9 +37,9 @@ export default function Page() {
 
     const handleLogin = (data: FormData) => {
         axios_instance
-            .post("/api/inventory/login/", data)
+            .post("/api/cinema/login/", data)
             .then(() => {
-                router.push("/inventory/products/")
+                router.push("/cinema/products/")
             })
             .catch(() => {
                 setAuthError("ユーザー名またはパスワードに誤りがあります。")

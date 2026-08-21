@@ -38,10 +38,10 @@ axios_instance.interceptors.response.use(
 
         // Login / Logout / Retry はRefresh対象外
         const excludedUrls = [
-            "/api/inventory/login/",
-            "/api/inventory/logout/",
-            "/api/inventory/retry/",
-            "/api/inventory/me/",
+            "/api/cinema/login/",
+            "/api/cinema/logout/",
+            "/api/cinema/retry/",
+            "/api/cinema/me/",
         ]
 
         if (excludedUrls.includes(originalRequest.url)) {
@@ -51,7 +51,7 @@ axios_instance.interceptors.response.use(
         try {
             // Refresh Tokenを使用してAccess Tokenを更新
             await axios_instance.post(
-                "/api/inventory/retry/",
+                "/api/cinema/retry/",
                 {}
             )
 
@@ -75,7 +75,7 @@ axios_instance.interceptors.response.use(
  */
 export const logout = async () => {
     try {
-        await axios_instance.post("/api/inventory/logout/")
+        await axios_instance.post("/api/cinema/logout/")
     } finally {
         // APIの成否にかかわらずログイン画面へ戻す
         window.location.href = "/login"

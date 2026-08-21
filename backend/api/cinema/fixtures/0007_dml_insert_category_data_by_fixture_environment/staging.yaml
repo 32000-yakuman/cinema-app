@@ -1,4 +1,4 @@
-- model: inventory.Category
+- model: cinema.Category
   fields:
     name: ステージング
     parent_category: null

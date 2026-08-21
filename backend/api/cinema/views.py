@@ -1,7 +1,7 @@
-from .serializers import InventorySerializer, ProductSerializer, PurchaseSerializer, SalesSerializer, SalesCreateSerializer
-from api.inventory.exception import BusinessException
-from api.inventory.models import Status, SalesFile, Sales
-from api.inventory.serializers import FileSerializer
+from .serializers import cinemaSerializer, ProductSerializer, PurchaseSerializer, SalesSerializer, SalesCreateSerializer
+from api.cinema.exception import BusinessException
+from api.cinema.models import Status, SalesFile, Sales
+from api.cinema.serializers import FileSerializer
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db.models import F, Value, Sum
@@ -99,7 +99,7 @@ class SalesView(APIView):
 
         serializer.save()
         return Response(serializer.data, status.HTTP_201_CREATED)
-class InventoryView(APIView):
+class cinemaView(APIView):
     # 仕入れ・売上情報を取得する
     def get(self, request, id=None, format=None):
         if id is None :
@@ -110,7 +110,7 @@ class InventoryView(APIView):
             purchase = Purchase.objects.filter(product_id=id).prefetch_related('product').values("id", "quantity", type=Value('1'), date=F('purchase_date'),unit=F('product__price'))
             sales = Sales.objects.filter(product_id=id).prefetch_related('product').values("id", "quantity", type=Value('2'), date=F('sales_date'),unit=F('product__price'))
             queryset = purchase.union(sales).order_by(F("date"))
-            serializer = InventorySerializer(queryset, many=True)
+            serializer = cinemaSerializer(queryset, many=True)
             return Response(serializer.data, status.HTTP_200_OK)
 
 class LoginView(APIView):

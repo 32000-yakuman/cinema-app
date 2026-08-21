@@ -47,7 +47,7 @@ export default function Page() {
         
         const formData = new FormData();
         formData.append('file', fileSync)
-        axios.post(`/api/inventory/sync`, formData)        
+        axios.post(`/api/cinema/sync`, formData)        
         
             .then(function (response) {
                 console.log(response)
@@ -69,7 +69,7 @@ export default function Page() {
     const [selectedProduct, setSelectedProduct] = useState('')
     
     useEffect(() => {
-        axios.get('/api/inventory/products/')
+        axios.get('/api/cinema/products/')
             .then((res) => {
                 setProducts(res.data)
             })
@@ -84,7 +84,7 @@ export default function Page() {
             return
         }
 
-        axios.get('/api/inventory/summary/', {
+        axios.get('/api/cinema/summary/', {
             params: {
                 product: selectedProduct
             }
@@ -106,7 +106,7 @@ export default function Page() {
 
         const formData = new FormData();
         formData.append('file', fileAsync)
-        axios.post(`/api/inventory/async`, formData)        
+        axios.post(`/api/cinema/async`, formData)        
             .then(function (response) {
                 console.log(response)
                 result('success', '同期ファイルが登録されました')

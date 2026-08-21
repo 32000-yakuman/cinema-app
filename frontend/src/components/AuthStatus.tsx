@@ -8,7 +8,7 @@ export default function AuthStatus() {
 
   useEffect(() => {
     axios
-      .get("/api/inventory/me/")
+      .get("/api/cinema/me/")
       .then(() => setStatus("ログイン中"))
       .catch(() => setStatus("ログアウト"));
   }, []);

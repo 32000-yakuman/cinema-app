@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
-    "api.inventory",
+    "api.cinema",
     "batch",
 ]
 
@@ -145,7 +145,7 @@ LOGGING = {
             "level": "INFO",
             "handlers": ["console"],
         },
-        "api.inventory": {
+        "api.cinema": {
             "level": "DEBUG",
             "handlers": ["console"],
             "propagate": False,
@@ -161,7 +161,7 @@ STATIC_URL = "static/"
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'api.inventory.authentication.AccessJWTAuthentication',
+        'api.cinema.authentication.AccessJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [

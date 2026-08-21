@@ -55,7 +55,7 @@ export default function Page() {
     };
 
     const fetchProducts = () => {
-        axios.get('/api/inventory/products')
+        axios.get('/api/cinema/products')
             .then((res) => res.data)
             .then((data) => {setData(data)})
     }
@@ -114,7 +114,7 @@ export default function Page() {
         setId(0)
     }
     const handleAdd = (data: ProductData) => {
-        axios.post("/api/inventory/products", data).then((response) => {
+        axios.post("/api/cinema/products", data).then((response) => {
             result('success','商品が登録されました')
             fetchProducts()
         })
@@ -136,14 +136,14 @@ export default function Page() {
         setId(0);
     }
     const handleEdit = (data: ProductData) => {
-        axios.put(`/api/inventory/products/${data.id}`, data).then((response) => {
+        axios.put(`/api/cinema/products/${data.id}`, data).then((response) => {
             result('success', '商品が更新されました')
             fetchProducts()
         })
         setId(0);
     }
     const handleDelete = (id: number) => {
-        axios.delete(`/api/inventory/products/${id}`).then((response) => {
+        axios.delete(`/api/cinema/products/${id}`).then((response) => {
             result('success', '商品が削除されました')
             fetchProducts()
         })  
@@ -330,7 +330,7 @@ export default function Page() {
                                     <TableCell>{data.name}</TableCell>
                                     <TableCell>{data.price}</TableCell>
                                     <TableCell>{data.description}</TableCell>
-                                    <TableCell><Link href={`/inventory/products/${data.id}`}>在庫処理</Link></TableCell>
+                                    <TableCell><Link href={`/cinema/products/${data.id}`}>在庫処理</Link></TableCell>
                                     <TableCell>
                                         <IconButton
                                             aria-label="編集する"

@@ -18,7 +18,7 @@ class AuthFlowTests(TestCase):
         正しい認証情報でログインできる
         """
         response = self.client.post(
-            "/api/inventory/login/",
+            "/api/cinema/login/",
             {
                 "username": self.username,
                 "password": self.password
@@ -34,7 +34,7 @@ class AuthFlowTests(TestCase):
         誤ったパスワードで401エラーが返る
         """
         response = self.client.post(
-            "/api/inventory/login/",
+            "/api/cinema/login/",
             {
                 "username" :self.username,
                 "password" :"wrong.password"
@@ -47,7 +47,7 @@ class AuthFlowTests(TestCase):
         """
         ログインしていない状態で/meにアクセスすると401が返る
         """
-        response = self.client.get("/api/inventory/me/")
+        response = self.client.get("/api/cinema/me/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_me_with_login_returns_user_info(self):
@@ -55,7 +55,7 @@ class AuthFlowTests(TestCase):
         ログイン後に/meにアクセスするとユーザー情報が返る
         """
         login_response = self.client.post(
-            "/api/inventory/login/",
+            "/api/cinema/login/",
             {
                 "username" :self.username,
                 "password" :self.password
@@ -64,7 +64,7 @@ class AuthFlowTests(TestCase):
         )
         self.assertEqual(login_response.status_code, status.HTTP_200_OK)
 
-        me_response = self.client.get("/api/inventory/me/")
+        me_response = self.client.get("/api/cinema/me/")
         self.assertEqual(me_response.status_code, status.HTTP_200_OK)
         self.assertEqual(me_response.data.get("user_id"), self.user.id)
 
@@ -72,6 +72,6 @@ class AuthFlowTests(TestCase):
         """
         未ログイン状態で商品一覧を呼ぶと401が返る
         """
-        request = self.client.get("/api/inventory/products/")
+        request = self.client.get("/api/cinema/products/")
 
         self.assertEqual(request.status_code, status.HTTP_401_UNAUTHORIZED)

@@ -31,21 +31,21 @@ type FormData = {
     quantity: number;
 };
 // 新規登録用の型定義
-type InventoryData = {
+type cinemaData = {
     id: number;
     type: number;
     date: string;
     unit: number;
     quantity: number;
     price: number;
-    inventory : number;
+    cinema : number;
 }
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
 
      useEffect(() => {
-    axios.get(`/api/inventory/products/${id}`)
+    axios.get(`/api/cinema/products/${id}`)
       .then((response) => {
         const p = response.data
         // setProduct...
@@ -64,7 +64,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         price: 0,
         description: ""
     })
-    const [data, setData] = useState<Array<InventoryData>>([])
+    const [data, setData] = useState<Array<cinemaData>>([])
     const [action, setAction] = useState<string>("");
     const [open, setOpen] = useState(false);
     const [severity, setSeverity] = useState<AlertColor>('success');
@@ -79,7 +79,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         setOpen(false);
     };
     useEffect(() => {
-        axios.get(`/api/inventory/products/${id}`)
+        axios.get(`/api/cinema/products/${id}`)
             .then((response) => {
                 const p = response.data
                 setProduct({
@@ -90,14 +90,14 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 })
             })
         
-        axios.get(`/api/inventory/inventories/${id}`)
+        axios.get(`/api/cinema/inventories/${id}`)
             .then((response) => {
-                const inventoryData: InventoryData[] = []
+                const cinemaData: cinemaData[] = []
                 let key: number = 1
-                let inventory: number = 0
+                let cinema: number = 0
                 
-                response.data.forEach((e: InventoryData) => {
-                    inventory += e.type === 1 ? e.quantity : e.quantity * -1
+                response.data.forEach((e: cinemaData) => {
+                    cinema += e.type === 1 ? e.quantity : e.quantity * -1
                     const newElement = {
                         id: key++,
                         type: e.type,
@@ -105,11 +105,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                         unit: e.unit,
                         quantity: e.quantity,
                         price: e.unit * e.quantity,
-                        inventory : inventory,
+                        cinema : cinema,
                     }
-                    inventoryData.unshift(newElement)
+                    cinemaData.unshift(newElement)
                 })
-                setData(inventoryData)
+                setData(cinemaData)
             })
     }, [open])
     
@@ -137,7 +137,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             purchase_date: new Date(),
             product: data.id
         }
-        axios.post('/api/inventory/purchases/', purchase).then((response) => {
+        axios.post('/api/cinema/purchases/', purchase).then((response) => {
             result('success', '商品を仕入れました')
         })  
     };
@@ -148,7 +148,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             sales_date: new Date(),
             product: data.id
         }
-        axios.post('/api/inventory/sales/', sale).then((response) => {
+        axios.post('/api/cinema/sales/', sale).then((response) => {
             result('success', '商品を卸しました')
         })
     };
@@ -221,14 +221,14 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {data.map((data: InventoryData) => (
+                        {data.map((data: cinemaData) => (
                             <TableRow key={data.id}>
                                 <TableCell>{data.type}</TableCell>
                                 <TableCell>{data.date}</TableCell>
                                 <TableCell>{data.unit}</TableCell>
                                 <TableCell>{data.quantity}</TableCell>
                                 <TableCell>{data.price}</TableCell>
-                                <TableCell>{data.inventory}</TableCell>
+                                <TableCell>{data.cinema}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
