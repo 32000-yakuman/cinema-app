@@ -1,0 +1,14 @@
+from api.cinema.models import Screen, Seat
+
+screen = Screen.objects.get(pk=1)
+
+for row in range(screen.row_count):
+    for col in range(screen.col_count):
+        Seat.objects.create(
+            screen=screen,
+            row_label=chr(65 + row),   # 0→A, 1→B, 2→C...
+            seat_number=col + 1,
+            seat_type="normal",
+        )
+
+print(Seat.objects.filter(screen=screen).count())  # 40が出れば成功
