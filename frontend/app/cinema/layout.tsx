@@ -35,7 +35,7 @@ type Movie = {
     title: string;
 }
 
-export default function cinemaLayout({ children } : { children: React.ReactNode }) {
+export default function CinemaLayout({ children } : { children: React.ReactNode }) {
     const [open, setOpen] = useState(false)
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [movies, setMovies] = useState<Movie[]>([])
@@ -87,7 +87,7 @@ export default function cinemaLayout({ children } : { children: React.ReactNode 
                 {movies.map((movie) => (
                     <ListItem key={movie.id} component="a" href={`/cinema/movies/${movie.id}/showtimes/`} disablePadding>
                         <ListItemButton>
-                            <ListItemText primary="上映スケジュール" />
+                            <ListItemText primary={movie.title} />
                         </ListItemButton>
                     </ListItem>
                 ))}
