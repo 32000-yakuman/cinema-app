@@ -75,3 +75,5 @@ nginx/certs/
 *.crt
 
 docker-compose.override.yml
+
+cookie.txt
