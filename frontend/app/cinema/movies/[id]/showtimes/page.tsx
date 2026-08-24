@@ -44,7 +44,7 @@ export default function Page() {
 
 
     const fetchMovie = () => {
-        axios.get(`/api/cinema/movies/${movieId}`)
+        axios.get(`/api/cinema/movies/${movieId}/`)
             .then((res) => res.data)
             .then((data) => { setMovie(data) })
     }

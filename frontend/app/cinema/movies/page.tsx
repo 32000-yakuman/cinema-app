@@ -39,7 +39,7 @@ export default function Page() {
     }, [])
 
     const handleSelect = (id: number) => {
-        router.push(`/cinema/movies/${id}/showtimes`)
+        router.push(`/cinema/movies/${id}/showtimes/`)
     }
 
     return (

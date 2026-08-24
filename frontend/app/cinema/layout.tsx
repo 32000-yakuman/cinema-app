@@ -18,7 +18,7 @@ import {
     Toolbar,
     Typography,
 } from "@mui/material";
-import { Logout as LogoutIcon, Menu as MenuIcon } from "@mui/icons-material"
+import { Logout as LogoutIcon, Menu as MenuIcon, MovieSharp } from "@mui/icons-material"
 import axios from "../../plugins/axios"
 
 const defaultTheme = createTheme ({
@@ -30,9 +30,15 @@ const defaultTheme = createTheme ({
     },
 })
 
+type Movie = {
+    id: number;
+    title: string;
+}
+
 export default function cinemaLayout({ children } : { children: React.ReactNode }) {
     const [open, setOpen] = useState(false)
     const [isLoggedIn, setIsLoggedIn] = useState(false)
+    const [movies, setMovies] = useState<Movie[]>([])
     const router = useRouter()
 
     // 🔥 Django にログイン状態を問い合わせる
@@ -41,6 +47,14 @@ export default function cinemaLayout({ children } : { children: React.ReactNode 
             .get("/api/cinema/me/", { withCredentials: true })
             .then(() => setIsLoggedIn(true))
             .catch(() => setIsLoggedIn(false))
+    }, [])
+
+    // 上映中の映画一覧の取得
+    useEffect(() => {
+        axios
+            .get("/api/cinema/movies/")
+            .then((res) => setMovies(res.data))
+            .catch(() => setMovies([]))
     }, [])
 
     const handleLogin = () => {
@@ -70,11 +84,13 @@ export default function cinemaLayout({ children } : { children: React.ReactNode 
                     </ListItemButton>
                 </ListItem>
                 <Divider />
-                <ListItem component="a" href={`/cinema/movies/[id]/showtimes/`} disablePadding>
-                    <ListItemButton>
-                        <ListItemText primary="上映スケジュール" />
-                    </ListItemButton>
-                </ListItem>
+                {movies.map((movie) => (
+                    <ListItem key={movie.id} component="a" href={`/cinema/movies/${movie.id}/showtimes/`} disablePadding>
+                        <ListItemButton>
+                            <ListItemText primary="上映スケジュール" />
+                        </ListItemButton>
+                    </ListItem>
+                ))}
                 <Divider />
             </List>
         </Box>
