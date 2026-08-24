@@ -16,6 +16,7 @@ urlpatterns = [
     path('showtimes/', views.ShowtimeView.as_view()),
     path('showtimes/<int:id>/', views.ShowtimeView.as_view()),
     path('reservations/', views.ReservationView.as_view()),
+    path('reservations/<int:id>/', views.ReservationView.as_view()),
     path('reservations/<int:id>/cancel/', views.ReservationCancelView.as_view()),
     path('payments/', views.PaymentView.as_view()),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

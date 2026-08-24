@@ -39,7 +39,7 @@ export default function Page() {
         axios_instance
             .post("/api/cinema/login/", data)
             .then(() => {
-                router.push("/cinema/products/")
+                router.push("/cinema/movies/")
             })
             .catch(() => {
                 setAuthError("ユーザー名またはパスワードに誤りがあります。")

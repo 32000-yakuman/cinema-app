@@ -115,7 +115,23 @@ class SeatView(APIView):
             return Response({"errMsg": "screenを指定してください"}, status.HTTP_400_BAD_REQUEST)
         queryset = Seat.objects.filter(screen_id=screen_id)
         serializer = SeatSerializer(queryset, many=True)
-        return Response(serializer.data, status.HTTP_200_OK)
+        data = serializer.data
+
+        # showtimeが選択されたら、予約済み座席かどうかを表示
+        showtime_id = request.query_params.get('showtime')
+        if showtime_id:
+            reserved_seat_ids = set(
+                ReservationSeat.objects.filter(
+                    showtime_id=showtime_id
+                ).values_list('seat_id', flat=True)
+            )
+            for seat in data:
+                seat['is_reserved'] = seat['id'] in reserved_seat_ids
+        else:
+            for seat in data:
+                seat['is_reserved'] = False
+
+        return Response(data, status.HTTP_200_OK)
 
 
     def post(self, request, format=None):
@@ -200,10 +216,21 @@ class ReservationView(APIView):
     """
     予約操作に関する関数
     """
-    def get(self, request, format=None):        
+    def get_object(self, pk, user):
+        try:
+            return Reservation.objects.get(pk=pk, user=user)
+        except Reservation.DoesNotExist:
+            raise NotFound
+
+    
+    def get(self, request, id=None, format=None):        
         # ログイン中のユーザー自身の予約のみ返す
-        queryset = Reservation.objects.filter(user=request.user).order_by('-reserved_at')
-        serializer = ReservationSerializer(queryset, many=True)
+        if id is None:
+            queryset = Reservation.objects.filter(user=request.user).order_by('-reserved_at')
+            serializer = ReservationSerializer(queryset, many=True)
+        else:
+            reservation = self.get_object(id, request.user)
+            serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status.HTTP_200_OK)
 
 

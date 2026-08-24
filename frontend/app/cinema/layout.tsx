@@ -64,15 +64,15 @@ export default function cinemaLayout({ children } : { children: React.ReactNode 
             <Toolbar />
             <Divider />
             <List>
-                <ListItem component="a" href="/cinema/products" disablePadding>
+                <ListItem component="a" href="/cinema/movies/" disablePadding>
                     <ListItemButton>
-                        <ListItemText primary="商品一覧" />
+                        <ListItemText primary="上映中の映画一覧" />
                     </ListItemButton>
                 </ListItem>
                 <Divider />
-                <ListItem component="a" href="/cinema/import_sales" disablePadding>
+                <ListItem component="a" href={`/cinema/movies/[id]/showtimes/`} disablePadding>
                     <ListItemButton>
-                        <ListItemText primary="売上一括登録" />
+                        <ListItemText primary="上映スケジュール" />
                     </ListItemButton>
                 </ListItem>
                 <Divider />
@@ -94,7 +94,7 @@ export default function cinemaLayout({ children } : { children: React.ReactNode 
                             component="div"
                             sx={{ flexGrow: 1 }}
                         >
-                            在庫管理システム
+                            秘封映画館
                         </Typography>
                         
                         {/* 🔥 ログイン状態でボタンを切り替え */}
