@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "api.cinema",
     "batch",
+    "accounts",
 ]
 
 MIDDLEWARE = [
@@ -101,6 +102,7 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = "accounts.CustomUser"
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -186,3 +188,4 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # browserのHTTPS通信を認識
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+

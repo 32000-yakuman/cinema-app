@@ -1,6 +1,7 @@
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.db import IntegrityError
+from django.db import models, IntegrityError
+from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,16 +9,19 @@ from rest_framework import status
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework.permissions import IsAuthenticated
 
+from .permissions import IsCounterStaff
 from .models import (
     Theater, Screen, Seat, Movie, Showtime,
     Reservation, ReservationSeat, Payment,
+    UserPoint,
     create_reservation, cancel_reservation
 )
 from .serializers import (
     TheaterSerializer, ScreenSerializer, SeatSerializer,
     MovieSerializer, ShowtimeSerializer,
     ReservationSerializer, ReservationCreateSerializer, 
-    PaymentSerializer,
+    PaymentSerializer, PaymentCreateSerializer,
+    PaymentConfirmSerializer, CheckInSerializer, UserPointSerializer,
 )
 
 
@@ -263,6 +267,20 @@ class ReservationView(APIView):
         return Response(result.data, status.HTTP_201_CREATED)
 
 
+class ReservationPaymentView(APIView):
+    """
+    予約者が決済方法を選択する
+    """
+    def post(self, request, id, format=None):
+        reservation = get_object_or_404(Reservation, pk=id, user=request.user)
+        serializer = PaymentCreateSerializer(
+            data=request.data, context={"reservation": reservation, "request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save()
+        return Response(PaymentSerializer(payment).data, status.HTTP_201_CREATED)
+
+
 class ReservationCancelView(APIView):
     """
     予約キャンセルに関する関数
@@ -281,15 +299,53 @@ class ReservationCancelView(APIView):
         return Response(serializer.data, status.HTTP_200_OK)
 
 
-class PaymentView(APIView):
+class ReservationPaymentConfirmView(APIView):
     """
-    決済操作に関する関数
+    窓口職員が現金決済を確定する
     """
-    def post(self, request, format=None):
-        serializer = PaymentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status.HTTP_201_CREATED)
+    permission_classes = [IsCounterStaff]
+
+    def patch(self, request, id, format=None):
+        reservation = get_object_or_404(Reservation, pk=id)
+        payment = get_object_or_404(Payment, reservation=reservation)
+        serializer = PaymentConfirmSerializer(context={"payment": payment, "request": request})
+        payment = serializer.save()
+        return Response(PaymentSerializer(payment).data, status.HTTP_200_OK)
+
+class ReservationCheckInView(APIView):
+    """
+    窓口職員が来場確認を行う
+    """
+    permission_classes = [IsCounterStaff]
+
+    def post(self, request, id, format=None):
+        reservation = get_object_or_404(Reservation, pk=id)
+        serializer = CheckInSerializer(context={"reservation": reservation})
+        reservation = serializer.save()
+        return Response(ReservationSerializer(reservation).data, status.HTTP_200_OK)
+
+class StaffReservationSearchView(APIView):
+    """
+    窓口の予約検索(予約番号/氏名)
+    """
+    permission_classes = [IsCounterStaff]
+
+    def get(self, request, format=None):
+        query = request.query_params.get('query', '')
+        queryset = Reservation.objects.filter(
+            models.Q(id__icontains=query) | models.Q(user__username__icontains=query)
+        ).order_by('-reserved_at')[:20]
+        return Response(ReservationSerializer(queryset, many=True).data, status.HTTP_200_OK)
+
+
+class MyPointView(APIView):
+    """
+    自分のポイント残高を取得
+    """
+    def get(self, request, format=None):
+        user_point, _ = UserPoint.objects.get_or_create(user=request.user)
+        return Response(UserPointSerializer(user_point).data, status.HTTP_200_OK)
+
 
 class LoginView(APIView):
     """ユーザーのログイン処理

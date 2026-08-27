@@ -1,6 +1,6 @@
-from django.db import models
-from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import models, transaction
+from django.conf import settings
+
 
 class Theater(models.Model):
     """
@@ -93,11 +93,12 @@ class Reservation(models.Model):
     """
     予約
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    #予約の入った上映回を消さないために
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    #予約の入った上映回を消さないためにProtect
     showtime = models.ForeignKey(Showtime, on_delete=models.PROTECT)
     reserved_at = models.DateTimeField(auto_now_add=True, verbose_name="予約日時")
     total_price = models.PositiveIntegerField(verbose_name="合計金額")
+    checked_in_at = models.DateTimeField(null=True, blank=True, verbose_name="来場確認日時")
 
     class Status(models.TextChoices):
         PENDING = "pending", "仮押さえ"  
@@ -140,16 +141,33 @@ class ReservationSeat(models.Model):
             )
         ]
 
+class SeatLimitExceeded(Exception):
+    """
+    1アカウントにつき座席数上限（5席）を超えた場合
+    """
+    pass
+
+
 # 予約座席を確保
 @transaction.atomic
 def create_reservation(user, showtime, seat_ids):
+    existing_count = ReservationSeat.objects.filter(
+        reservation__user=user,
+        reservation__showtime=showtime,
+        reservation__status__in=[Reservation.Status.PENDING, Reservation.Status.CONFIRMED],
+    ).count()
+    if existing_count + len(seat_ids) > 5:
+        raise SeatLimitExceeded(
+            f"同じ上映回では1アカウントにつき5座席までです(現在{existing_count}席予約済み)"
+        )
+
     seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
 
     reservation = Reservation.objects.create(
         user=user, showtime=showtime, status=Reservation.Status.PENDING, total_price=0
     )
     # 金額の初期化
-    total=0
+    total = 0
     for seat in seats:
         rs = ReservationSeat.objects.create(
         reservation=reservation, seat=seat, price=showtime.base_price
@@ -172,22 +190,65 @@ class Payment(models.Model):
     決済
     """
     reservation = models.OneToOneField(Reservation, on_delete=models.CASCADE)
-    amount = models.PositiveIntegerField(verbose_name="決済金額")
-    method = models.CharField(max_length=20, verbose_name="決済方法")
-    # 現地払いもあるのでnullable
-    paid_at = models.DateTimeField(null=True, verbose_name="決済完了日時") 
+    amount = models.PositiveIntegerField(verbose_name="決済金額", default=0)
+
+    class Method(models.TextChoices):
+        CASH = "cash", "現金"
+        POINT = "point", "ポイント交換"
+
+    method = models.CharField(max_length=20, choices=Method.choices)
 
     class Status(models.TextChoices):
-        PENDING = "pending", "仮押さえ"  
-        PAID = "paid", "決済済"
+        PENDING = "pending", "仮確定(未払い)"
+        CONFIRMED = "confirmed", "確定済み"
+        CANCELLED = "cancelled",  "キャンセル"
+    
+    status = models.CharField(max_length=20, choices=Status.choices,
+                              default=Status.PENDING, verbose_name="決済状態")
+    
+    points_used = models.PositiveIntegerField(default=0, verbose_name="使用ポイント数")
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="confirmed_payments",
+        verbose_name="会計確定した職員"
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name="決済確定日時")
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name="決済完了日時")
 
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.PENDING,
-        verbose_name='決済状態'
-        )
-        
     class Meta:
         db_table = 'payment'
         verbose_name = '決済'
+        constraints = [
+            models.CheckConstraint(
+                check=~(models.Q(method="point") & models.Q(status="pending")),
+                name="point_payment_cannot_be_peding",
+            ),
+        ]
+
+POINT_EARN_PER_VIEW = 1
+POINT_REDEEM_COST = 5
+
+class UserPoint(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    balance = models.PositiveIntegerField(default=0, verbose_name="保有ポイント")
+
+    class Meta:
+        db_table = 'user_point'
+        verbose_name = 'ユーザーポイント'
+
+class PointTransaction(models.Model):
+
+    class Type(models.TextChoices):
+        EARN = "earn", "付与"
+        REDEEM = "redeem", "交換使用"
+        REFUND = "refund", "返還"
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    reservation = models.ForeignKey(Reservation, null=True, blank=True, on_delete=models.SET_NULL)
+    type = models.CharField(max_length=10, choices=Type.choices)
+    amount = models.IntegerField(verbose_name="増減量(付与・返還は正、交換は負)")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'point_transaction'
+        verbose_name = 'ポイント履歴'

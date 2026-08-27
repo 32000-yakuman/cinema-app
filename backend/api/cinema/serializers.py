@@ -1,7 +1,11 @@
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 from .models import (
     Theater, Screen, Seat, Movie, Showtime,
     Reservation, ReservationSeat, Payment,
+    UserPoint, PointTransaction,
+    POINT_EARN_PER_VIEW, POINT_REDEEM_COST
 )
 
 
@@ -95,3 +99,90 @@ class PaymentSerializer(serializers.ModelSerializer):
             'id', 'reservation', 'amount', 'method',
             'status', 'status_display', 'paid_at'
         ]
+
+class PaymentCreateSerializer(serializers.Serializer):
+    """
+    決済方法を選択して支払いを作成する専用シリアライザ
+    """
+    method = serializers.ChoiceField(choices=Payment.Method)
+
+    def create(self, validated_data):
+        reservation = self.context["reservation"]
+        user = self.context["request"].user
+        method = validated_data["method"]
+
+        with transaction.atomic():
+            if method == Payment.Method.POINT:
+                user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=user)
+                if user_point.balance < POINT_REDEEM_COST:
+                    raise serializers.ValidationError("ポイント残高が不足しています")
+
+                user_point.balance -= POINT_REDEEM_COST
+                user_point.save()
+
+                PointTransaction.objects.create(
+                    user=user, reservation=reservation,
+                    type=PointTransaction.Type.REDEEM, amount=-POINT_REDEEM_COST,
+                )
+                payment = Payment.objects.create(
+                    reservation=reservation, method=Payment.Method.POINT,
+                    status=Payment.Status.CONFIRMED, points_used=POINT_REDEEM_COST,
+                    amount=0, confirmed_at=timezone.now(),
+                )
+            else:
+                payment = Payment.objects.create(
+                    reservation=reservation, method=Payment.Method.CASH,
+                    status=Payment.Status.PENDING, amount=reservation.total_price,
+                )
+        return payment
+
+
+class PaymentConfirmSerializer(serializers.Serializer):
+    """
+    窓口職員が現金決済を最終確定する
+    """
+    def save(self, **kwargs):
+        payment = self.context["payment"]
+        staff_user = self.context["request"].user
+
+        if payment.status != Payment.Status.PENDING:
+            raise serializers.ValidationError("この決済はすでに確定済み、またはキャンセル済みです")
+
+        payment.status = Payment.Status.CONFIRMED
+        payment.confirmed_by = staff_user
+        payment.confirmed_at = timezone.now()
+        payment.save()
+        return payment
+
+        
+class CheckInSerializer(serializers.Serializer):
+    """
+    窓口職員が来場確認を行う。同時にポイント付与も実行
+    """
+    def save(self, **kwargs):
+        reservation = self.context["reservation"]
+
+        if reservation.checked_in_at:
+            raise serializers.ValidationError("すでにチェックイン済みです")
+        if not hasattr(reservation, "payment") or reservation.payment.status != Payment.Status.CONFIRMED:
+            raise serializers.ValidationError("この決済はすでに確定済み、またはキャンセル済みです")
+
+        with transaction.atomic():
+            reservation.checked_in_at = timezone.now()
+            reservation.save()
+
+            user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=reservation.user)
+            user_point.balance += POINT_EARN_PER_VIEW
+            user_point.save()
+
+            PointTransaction.objects.create(
+                user=reservation.user, reservation=reservation,
+                type=PointTransaction.Type.EARN, amount=POINT_EARN_PER_VIEW,
+            )
+        return reservation
+
+
+class UserPointSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPoint
+        field = ["balance"]
