@@ -184,6 +184,21 @@ def cancel_reservation(reservation):
     reservation.save()
     ReservationSeat.objects.filter(reservation=reservation).delete()
 
+    # ポイント決済だったら、ポイントを返還
+    if hasattr(reservation, "payment") and reservation.payment.method == Payment.Method.POINT:
+        payment = reservation.payment
+        if payment.status == Payment.Status.CONFIRMED:
+            user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=reservation.user)
+            user_point.balance += payment.points_used
+            user_point.save()
+            PointTransaction.objects.create(
+                user=reservation.user, reservation=reservation,
+                type=PointTransaction.Type.REFUND, amount=payment.points_used,
+            )
+            payment.status = Payment.Status.CANCELLED
+            payment.save()
+
+
 
 class Payment(models.Model):
     """
@@ -221,7 +236,7 @@ class Payment(models.Model):
         constraints = [
             models.CheckConstraint(
                 check=~(models.Q(method="point") & models.Q(status="pending")),
-                name="point_payment_cannot_be_peding",
+                name="point_payment_cannot_be_pending",
             ),
         ]
 

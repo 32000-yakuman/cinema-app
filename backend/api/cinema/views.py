@@ -13,7 +13,7 @@ from .permissions import IsCounterStaff
 from .models import (
     Theater, Screen, Seat, Movie, Showtime,
     Reservation, ReservationSeat, Payment,
-    UserPoint,
+    UserPoint, SeatLimitExceeded,
     create_reservation, cancel_reservation
 )
 from .serializers import (
@@ -257,6 +257,8 @@ class ReservationView(APIView):
             reservation = create_reservation(
                 user=request.user, showtime=showtime, seat_ids=seat_ids
             )
+        except SeatLimitExceeded as e:
+            return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         except IntegrityError:
             return Response(
                 {"errMsg": "選択された座席はすでに予約されています"},

@@ -129,6 +129,8 @@ class PaymentCreateSerializer(serializers.Serializer):
                     status=Payment.Status.CONFIRMED, points_used=POINT_REDEEM_COST,
                     amount=0, confirmed_at=timezone.now(),
                 )
+                reservation.status = Reservation.Status.CONFIRMED
+                reservation.save()
             else:
                 payment = Payment.objects.create(
                     reservation=reservation, method=Payment.Method.CASH,
@@ -152,6 +154,9 @@ class PaymentConfirmSerializer(serializers.Serializer):
         payment.confirmed_by = staff_user
         payment.confirmed_at = timezone.now()
         payment.save()
+
+        payment.reservation.status = Reservation.Status.CONFIRMED
+        payment.reservation.save()
         return payment
 
         
@@ -185,4 +190,4 @@ class CheckInSerializer(serializers.Serializer):
 class UserPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPoint
-        field = ["balance"]
+        fields = ["balance"]
