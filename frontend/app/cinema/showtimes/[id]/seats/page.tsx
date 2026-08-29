@@ -85,7 +85,7 @@ export default function Page() {
         })
             .then((res) => res.data)
             .then((data) => {
-                router.push(`/cinema/reservations/${data.id}`)
+                router.push(`/cinema/reservations/${data.id}/payment`)
             })
             .catch((err) => {
                 if (err.response?.status === 409) {

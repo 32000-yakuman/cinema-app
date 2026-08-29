@@ -170,7 +170,7 @@ class CheckInSerializer(serializers.Serializer):
         if reservation.checked_in_at:
             raise serializers.ValidationError("すでにチェックイン済みです")
         if not hasattr(reservation, "payment") or reservation.payment.status != Payment.Status.CONFIRMED:
-            raise serializers.ValidationError("この決済はすでに確定済み、またはキャンセル済みです")
+            raise serializers.ValidationError("`決済が確定していないため、チェックインできません")
 
         with transaction.atomic():
             reservation.checked_in_at = timezone.now()
