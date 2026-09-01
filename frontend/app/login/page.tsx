@@ -11,7 +11,8 @@ import {
     Typography,
     ThemeProvider,
 } from "@mui/material";
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { useState } from 'react';
 
@@ -28,6 +29,9 @@ export default function Page() {
     } = useForm<FormData>();
     const [authError, setAuthError] = useState<string | null>(null)
     const router = useRouter()
+    const serchParams = useSearchParams()
+    const justRegistered = serchParams.get("registered") === "true"
+
 
     const defaultTheme = createTheme()
 
@@ -38,8 +42,13 @@ export default function Page() {
     const handleLogin = (data: FormData) => {
         axios_instance
             .post("/api/cinema/login/", data)
-            .then(() => {
-                router.push("/cinema/movies/")
+            .then(() => axios_instance.get("/api/cinema/me/"))
+            .then((res) => {
+                if (res.data.is_staff_member) {
+                    router.push("/cinema/staff/reservations/")
+                } else {
+                    router.push("/cinema/movies/")
+                }
             })
             .catch(() => {
                 setAuthError("ユーザー名またはパスワードに誤りがあります。")
@@ -58,6 +67,16 @@ export default function Page() {
                         alignItems: "center",
                     }}
                 >
+                    {justRegistered && (
+                        <Typography 
+                            variant="h6"
+                            color="info" 
+                            sx={{ marginBottom: 2 }}
+                        >
+                            登録が完了しました。ログインしてください。    
+                        </Typography>
+                    )}
+
                     <Typography component="h1" variant="h5">
                         ログイン
                     </Typography>
@@ -108,6 +127,12 @@ export default function Page() {
                         >
                             ログイン
                         </Button>
+
+                        <Typography variant="body2">
+                            アカウントをお持ちでない方は{' '}
+                            <Link href="/register">こちら</Link>
+                        </Typography>
+
                     </Box>
                 </Box>
             </Container>

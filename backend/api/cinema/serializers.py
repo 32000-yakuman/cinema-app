@@ -1,4 +1,7 @@
 from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password as django_validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import serializers
 from .models import (
@@ -8,6 +11,7 @@ from .models import (
     POINT_EARN_PER_VIEW, POINT_REDEEM_COST
 )
 
+User = get_user_model()
 
 class TheaterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,12 +72,15 @@ class ReservationSeatSerializer(serializers.ModelSerializer):
 class ReservationSerializer(serializers.ModelSerializer):
     seats = ReservationSeatSerializer(source='reservationseat_set', many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_status = serializers.CharField(source="payment.status", read_only=True)
+    payment_status_display = serializers.CharField(source="payment.get_status_display", read_only=True)
 
     class Meta:
         model = Reservation
         fields = [
             'id', 'user', 'showtime', 'status', 'status_display',
             'reserved_at', 'total_price', 'seats',
+            'payment_status', 'payment_status_display'
         ]
         read_only_fields = ['user', 'status', 'reserved_at', 'total_price']
 
@@ -138,6 +145,29 @@ class PaymentCreateSerializer(serializers.Serializer):
                 )
         return payment
 
+class StaffReservationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    movie_title = serializers.CharField(source="showtime.movie.title", read_only=True,)
+    screen_name = serializers.CharField(source="showtime.screen.name", read_only=True,)
+    payment_status = serializers.CharField(source="payment.status", read_only=True)
+    payment_status_display = serializers.CharField(source="payment.get_status_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True,)
+    seats = ReservationSeatSerializer(source='reservationseat_set',many=True,read_only=True,)
+
+    def get_customer_name(self, obj):
+        name = f"{obj.user.last_name} {obj.user.first_name}".strip()
+        return name if name else obj.user.username
+
+    class Meta:
+        model = Reservation
+        fields = [
+            'id', 'user', 'username', 'screen_name', 'status', 'status_display',
+            'checked_in_at', 'reserved_at', 'total_price', 'seats', 'showtime',
+            'customer_name', 'movie_title', 'payment_status', 'payment_status_display'
+        ]
+        read_only_fields = ['user', 'status', 'reserved_at','total_price',]
+    
 
 class PaymentConfirmSerializer(serializers.Serializer):
     """
@@ -170,7 +200,7 @@ class CheckInSerializer(serializers.Serializer):
         if reservation.checked_in_at:
             raise serializers.ValidationError("すでにチェックイン済みです")
         if not hasattr(reservation, "payment") or reservation.payment.status != Payment.Status.CONFIRMED:
-            raise serializers.ValidationError("`決済が確定していないため、チェックインできません")
+            raise serializers.ValidationError("決済が確定していないため、チェックインできません")
 
         with transaction.atomic():
             reservation.checked_in_at = timezone.now()
@@ -191,3 +221,35 @@ class UserPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPoint
         fields = ["balance"]
+
+class RegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("このユーザー名は既に使われています")
+        return value
+
+    def validate_password(self, value):
+        try:
+            django_validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
+    def create(self, validated_data):
+        return User.objects.create_user(
+            username=validated_data["username"],
+            password=validated_data["password"],
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+        )
+
+class AdminMovieSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Movie
+        fields = ['id', 'title', 'description', 'duration_minutes', 'release_date', 'rating']
+    
