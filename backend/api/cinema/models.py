@@ -147,10 +147,28 @@ class SeatLimitExceeded(Exception):
     """
     pass
 
+class InvalidSeatSelection(Exception):
+    """
+    指定された座席IDが存在しない、または上映回のスクリーンに属さない場合
+    """
+    pass
 
 # 予約座席を確保
 @transaction.atomic
 def create_reservation(user, showtime, seat_ids):
+    seat_ids = list(seat_ids)
+    seats = list(Seat.objects.select_for_update().filter(id__in=seat_ids))
+
+    # ⓵ 存在しないseat_idが混ざっていないのか
+    founds_ids = {s.id for s in seats}
+    if founds_ids != set(seat_ids):
+        raise InvalidSeatSelection("指定された座席が見つかりません")
+
+    # ⓶ この上映会のスクリーンに属する座席か
+    if any(s.screen_id != showtime.screen_id for s in seats):
+        raise InvalidSeatSelection("選択した座席はこの上映回のスクリーンに対応していません")
+
+
     existing_count = ReservationSeat.objects.filter(
         reservation__user=user,
         reservation__showtime=showtime,
@@ -160,8 +178,6 @@ def create_reservation(user, showtime, seat_ids):
         raise SeatLimitExceeded(
             f"同じ上映回では1アカウントにつき5座席までです(現在{existing_count}席予約済み)"
         )
-
-    seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
 
     reservation = Reservation.objects.create(
         user=user, showtime=showtime, status=Reservation.Status.PENDING, total_price=0
