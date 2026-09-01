@@ -2,26 +2,29 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db import models, IntegrityError
 from django.shortcuts import get_object_or_404
+from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework.permissions import IsAuthenticated
+from .serializers import RegisterSerializer, StaffReservationSerializer, AdminMovieSerializer
 
-from .permissions import IsCounterStaff
+from .permissions import IsCounterStaff, IsAdminUser
 from .models import (
     Theater, Screen, Seat, Movie, Showtime,
     Reservation, ReservationSeat, Payment,
     UserPoint, SeatLimitExceeded,
-    create_reservation, cancel_reservation
+    create_reservation, cancel_reservation,
+    InvalidSeatSelection,
 )
 from .serializers import (
     TheaterSerializer, ScreenSerializer, SeatSerializer,
     MovieSerializer, ShowtimeSerializer,
     ReservationSerializer, ReservationCreateSerializer, 
     PaymentSerializer, PaymentCreateSerializer,
-    PaymentConfirmSerializer, CheckInSerializer, UserPointSerializer,
+    PaymentConfirmSerializer, CheckInSerializer, 
+    UserPointSerializer, AdminMovieSerializer
 )
 
 
@@ -251,12 +254,14 @@ class ReservationView(APIView):
         try:
             showtime = Showtime.objects.get(pk=showtime_id)
         except Showtime.DoesNotExist:
-            raise NotFound('指定された上映館が見当たりません')
+            raise NotFound('指定された上映回が見当たりません')
 
         try:
             reservation = create_reservation(
                 user=request.user, showtime=showtime, seat_ids=seat_ids
             )
+        except InvalidSeatSelection as e:
+            return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         except SeatLimitExceeded as e:
             return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         except IntegrityError:
@@ -328,16 +333,40 @@ class ReservationCheckInView(APIView):
 
 class StaffReservationSearchView(APIView):
     """
-    窓口の予約検索(予約番号/氏名)
+    窓口の予約検索(予約番号・ユーザー名・氏名)
     """
     permission_classes = [IsCounterStaff]
 
     def get(self, request, format=None):
         query = request.query_params.get('query', '')
+
+        filters = (
+            models.Q(user__username__icontains=query) |
+            models.Q(user__last_name__icontains=query) |
+            models.Q(user__first_name__icontains=query)
+        )
+
+        if query.isdigit():
+            filters |= models.Q(id=int(query))
+
         queryset = Reservation.objects.filter(
-            models.Q(id__icontains=query) | models.Q(user__username__icontains=query)
+            filters
+        ).select_related(
+            'user',
+            'showtime',
+            'showtime__movie',
+            'showtime__screen',
+            'payment',
+        ).prefetch_related(
+            'reservationseat_set__seat',
         ).order_by('-reserved_at')[:20]
-        return Response(ReservationSerializer(queryset, many=True).data, status.HTTP_200_OK)
+
+        serializer = StaffReservationSerializer(
+            queryset,
+            many=True,
+        )
+        
+        return Response(serializer.data, status=status.HTTP_200_OK,)
 
 
 class MyPointView(APIView):
@@ -456,4 +485,62 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({"user_id": request.user.id}, status=200)
+        return Response({
+            "user_id": request.user.id,
+            "username": request.user.username,
+            "is_staff_member": request.user.is_staff_member,
+        }, status=200)
+
+class RegisterView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_201_CREATED)
+
+class AdminMovieView(APIView):
+    """
+    管理者用の映画一覧・新規作成
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, format=None):
+        queryset = Movie.objects.all().order_by('-release_date')
+        serializer = AdminMovieSerializer(queryset, many=True)
+        return Response(serializer.data, status.HTTP_200_OK)
+
+    def post(self, request, format=None):
+        serializer = AdminMovieSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status.HTTP_201_CREATED)
+
+class AdminMovieDetailView(APIView):
+    """
+    管理者用の映画詳細取得・更新・削除
+    """
+    permission_classes = [IsAdminUser]
+
+    def get_object(self, pk):
+        try:
+            return Movie.objects.get(pk=pk)
+        except Movie.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk, format=None):
+        serializer = AdminMovieSerializer(self.get_object(pk))
+        return Response(serializer.data, status.HTTP_200_OK)
+
+    def put(self, request, pk, format=None):
+        movie = self.get_object(pk)
+        serializer = AdminMovieSerializer(instance=movie, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status.HTTP_200_OK)
+
+    def delete(self, request, pk, format=None):
+        self.get_object(pk).delete()
+        return Response(status=status.HTTP_200_OK)

@@ -29,4 +29,8 @@ urlpatterns = [
     path('retry/', views.RetryView.as_view()),
     path('logout/', views.LogoutView.as_view()),
     path('me/', views.MeView.as_view()),
+    path('register/', views.RegisterView.as_view()),
+    
+    path('admin/movies/', views.AdminMovieView.as_view()),
+    path('admin/movies/<int:pk>/', views.AdminMovieDetailView.as_view()),
 ]

@@ -105,7 +105,7 @@ export default function Page() {
                             {seat.seat_label} - {seat.price.toLocaleString()}円
                         </Typography>
                     ))}
-                    <Divider sx={{ merginY: 2 }} />
+                    <Divider sx={{ marginY: 2 }} />
                     <Typography variant="h6">
                         合計: {reservation.total_price.toLocaleString()}円
                     </Typography>
