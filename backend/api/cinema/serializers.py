@@ -10,6 +10,7 @@ from .models import (
     UserPoint, PointTransaction,
     POINT_EARN_PER_VIEW, POINT_REDEEM_COST
 )
+from accounts.models import CustomUser
 
 User = get_user_model()
 
@@ -25,6 +26,25 @@ class ScreenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Screen
         fields = ['id', 'theater', 'theater_name', 'name', 'row_count', 'col_count']
+
+    def create(self, validated_data):
+        screen = Screen.objects.create(**validated_data)
+        self._generate_seats(screen)
+        return screen
+
+    def _generate_seats(self, screen):
+        import string
+        seats = [
+            Seat(
+                screen=screen,
+                row_label=string.ascii_uppercase[row],
+                seat_number=col + 1,
+                seat_type='standard'
+            )
+        for row in range(screen.row_count)
+        for col in range(screen.col_count)
+        ]
+        Seat.objects.bulk_create(seats)
 
 
 class SeatSerializer(serializers.ModelSerializer):
@@ -55,6 +75,30 @@ class ShowtimeSerializer(serializers.ModelSerializer):
             'id', 'movie', 'movie_title', 'screen', 'screen_name', 'theater_name',
             'start_time', 'end_time', 'base_price',
         ]
+
+    def validate(self, data):
+        start_time = data.get('start_time', getattr(self.instance, 'start_time', None))
+        end_time = data.get('end_time', getattr(self.instance, 'end_time', None))
+        screen = data.get('screen', getattr(self.instance, 'screen', None))
+
+        if start_time and end_time and start_time >= end_time:
+            raise serializers.ValidationError(
+                {"end_time":"終了時刻は開始時刻より後にしてください"}
+            )
+
+        if screen and start_time and end_time:
+            overlapping = Showtime.objects.filter(
+                screen=screen,
+                start_time__lt=end_time,
+                end_time__gt=start_time,
+            )
+            if self.instance:
+                overlapping = overlapping.exclude(pk=self.instance.pk)
+            if overlapping.exists():
+                raise serializers.ValidationError(
+                    {"start_time":"同じスクリーンで時間帯が重複する上映回が既に存在します"}
+                )
+        return data
 
 
 class ReservationSeatSerializer(serializers.ModelSerializer):
@@ -252,4 +296,12 @@ class AdminMovieSerializer(serializers.ModelSerializer):
     class Meta:
         model = Movie
         fields = ['id', 'title', 'description', 'duration_minutes', 'release_date', 'rating']
-    
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 
+            'date_joined', 'is_staff_member', 'is_active', 'is_staff',
+        ]
+        read_only_fields = ['id', 'username', 'first_name', 'last_name', 'date_joined',]

@@ -33,4 +33,8 @@ urlpatterns = [
     
     path('admin/movies/', views.AdminMovieView.as_view()),
     path('admin/movies/<int:pk>/', views.AdminMovieDetailView.as_view()),
+    path('admin/users/', views.AdminUserView.as_view()),
+    path('admin/users/<int:pk>/', views.AdminUserDatailView.as_view()),
+    path('admin/reservations/', views.AdminReservationView.as_view()),
+    path('admin/reservations/<int:pk>/cancel/', views.AdminReservationCancelView.as_view()),
 ]

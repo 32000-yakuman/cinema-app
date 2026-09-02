@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import {
     Movie as MovieIcon,
+    Theaters as TheatersIcon,
     ViewModule as ScreenIcon,
     Schedule as ShowtimeIcon,
     People as PeopleIcon,
@@ -37,32 +38,39 @@ const cards: Array<AdminCard> = [
         implemented: true,
     },
     {
+        title: '劇場管理',
+        description: '劇場の登録・編集・削除',
+        href: '/cinema/admin/theaters',
+        icon: <TheatersIcon fontSize="large" color="primary" />,
+        implemented: true,
+    },
+    {
         title: 'スクリーン管理',
         description: '劇場・スクリーン・座席の登録',
         href: '/cinema/admin/screens',
         icon: <ScreenIcon fontSize="large" color="primary" />,
-        implemented: false,
+        implemented: true,
     },
     {
         title: '上映回管理',
         description: '上映スケジュールの登録・編集',
         href: '/cinema/admin/showtimes',
         icon: <ShowtimeIcon fontSize="large" color="primary" />,
-        implemented: false,
+        implemented: true,
     },
     {
         title: 'ユーザー管理',
         description: 'アカウント・権限の管理',
         href: '/cinema/admin/users',
         icon: <PeopleIcon fontSize="large" color="primary" />,
-        implemented: false,
+        implemented: true,
     },
     {
         title: '予約管理',
         description: '予約状況の確認・対応',
         href: '/cinema/admin/reservations',
         icon: <ReservationIcon fontSize="large" color="primary" />,
-        implemented: false,
+        implemented: true,
     },
 ]
 

@@ -77,4 +77,7 @@ nginx/certs/
 docker-compose.override.yml
 
 cookie.txt
+cookies.txt
 staff_cookie.txt
+admin_cookie.txt
+admin_cookies.txt

@@ -43,8 +43,10 @@ export default function Page() {
         axios_instance
             .post("/api/cinema/login/", data)
             .then(() => axios_instance.get("/api/cinema/me/"))
-            .then((res) => {
-                if (res.data.is_staff_member) {
+            .then((res) => {                
+                if (res.data.is_staff) {
+                  router.push("/cinema/admin/")
+                } else if (res.data.is_staff_member) {
                     router.push("/cinema/staff/reservations/")
                 } else {
                     router.push("/cinema/movies/")

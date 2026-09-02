@@ -1,6 +1,7 @@
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db import models, IntegrityError
+from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import NotFound
@@ -8,15 +9,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework.permissions import IsAuthenticated
-from .serializers import RegisterSerializer, StaffReservationSerializer, AdminMovieSerializer
 
+from accounts.models import CustomUser
+from .serializers import RegisterSerializer, StaffReservationSerializer, AdminMovieSerializer
 from .permissions import IsCounterStaff, IsAdminUser
 from .models import (
     Theater, Screen, Seat, Movie, Showtime,
     Reservation, ReservationSeat, Payment,
     UserPoint, SeatLimitExceeded,
     create_reservation, cancel_reservation,
-    InvalidSeatSelection,
+    InvalidSeatSelection
 )
 from .serializers import (
     TheaterSerializer, ScreenSerializer, SeatSerializer,
@@ -24,7 +26,7 @@ from .serializers import (
     ReservationSerializer, ReservationCreateSerializer, 
     PaymentSerializer, PaymentCreateSerializer,
     PaymentConfirmSerializer, CheckInSerializer, 
-    UserPointSerializer, AdminMovieSerializer
+    AdminUserSerializer, UserPointSerializer, AdminMovieSerializer
 )
 
 
@@ -32,6 +34,12 @@ class TheaterView(APIView):
     """
     劇場操作に関する関数
     """
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+    
     def get_object(self, pk):
         try:
             return Theater.objects.get(pk=pk)
@@ -75,6 +83,13 @@ class ScreenView(APIView):
     """
     スクリーン操作に関する関数
     """
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
+    
     def get_object(self, pk):
         try:
             return Screen.objects.get(pk=pk)
@@ -115,7 +130,14 @@ class ScreenView(APIView):
 class SeatView(APIView):
     """
     座席操作に関する関数
-    """    
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
+        
     def get(self, request, format=None):
         screen_id = request.query_params.get('screen')
         if screen_id is None :
@@ -152,6 +174,13 @@ class MovieView(APIView):
     """
     映画操作に関する関数
     """
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
+    
     def get_object(self, pk):
         try:
             return Movie.objects.get(pk=pk)
@@ -193,6 +222,13 @@ class ShowtimeView(APIView):
     """
     上映回操作に関する関数
     """
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
+    
     def get_object(self, pk):
         try:
             return Showtime.objects.get(pk=pk)
@@ -218,6 +254,26 @@ class ShowtimeView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status.HTTP_201_CREATED)
+
+
+    def put(self, request, id, format=None):
+        showtime = self.get_object(id)
+        serializer = ShowtimeSerializer(instance=showtime, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status.HTTP_200_OK)
+
+
+    def delete(self, request, id, format=None):
+        showtime = self.get_object(id)
+        try:
+            showtime.delete()
+        except ProtectedError:
+            return Response(
+                {"errMsg": "既に予約が存在するため削除できません"},
+                status.HTTP_409_CONFLICT
+            )        
+        return Response(status=status.HTTP_200_OK)
 
 class ReservationView(APIView):
     """
@@ -489,6 +545,7 @@ class MeView(APIView):
             "user_id": request.user.id,
             "username": request.user.username,
             "is_staff_member": request.user.is_staff_member,
+            "is_staff": request.user.is_staff,
         }, status=200)
 
 class RegisterView(APIView):
@@ -544,3 +601,91 @@ class AdminMovieDetailView(APIView):
     def delete(self, request, pk, format=None):
         self.get_object(pk).delete()
         return Response(status=status.HTTP_200_OK)
+
+class AdminUserView(APIView):
+    """
+    管理者用のユーザー一覧
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, format=None):
+        queryset = CustomUser.objects.all().order_by('-date_joined')
+        serializer = AdminUserSerializer(queryset, many=True)
+        return Response(serializer.data, status.HTTP_200_OK)
+
+
+class AdminUserDatailView(APIView):
+    """"
+    管理者用のユーザー権限更新
+    """
+    permission_classes = [IsAdminUser]
+
+    def get_object(self, pk):
+        try:
+            return CustomUser.objects.get(pk=pk)
+        except CustomUser.DoesNotExist:
+            raise NotFound
+
+    def patch(self, request, pk, format=None):
+        user = self.get_object(pk)
+        if user.id == request.user.id and 'is_staff' in request.data and not request.data['is_staff']:
+            return Response(
+                {"errMsg": "自分自身の管理者権限は外せません"},
+                status.HTTP_400_BAD_REQUEST
+            )
+        serializer = AdminUserSerializer(
+            instance=user, data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status.HTTP_200_OK)
+
+    def delete(self, request, pk, format=None):
+        user = self.get_object(pk)
+        if user.id == request.user.id:
+            return Response(
+                {"errMsg": "自分自身のアカウントは削除できません"},
+                status.HTTP_400_BAD_REQUEST
+            )
+        user.delete()
+        return Response(status=status.HTTP_200_OK)
+
+class AdminReservationView(APIView):
+    """"
+    管理者用の予約一覧・絞り込み
+    """
+    permission_classes= [IsAdminUser]
+
+    def get(self, request, format=None):
+        queryset =Reservation.objects.select_related(
+            'user', 'showtime', 'showtime__movie', 'showtime__screen', 'payment',
+        ).prefetch_related(
+            'reservationseat_set__seat',
+        ).order_by('-reserved_at')
+
+        status_param = request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+
+        showtime_id = request.query_params.get('showtime')
+        if showtime_id:
+            queryset = queryset.filter(showtime_id=showtime_id)
+
+        serializer = StaffReservationSerializer(queryset[:50], many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class AdminReservationCancelView(APIView):
+    """
+    管理者用の予約キャンセル
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk, format=None):
+        reservation = get_object_or_404(Reservation, pk=pk)
+        if reservation.status == Reservation.Status.CANCELLED:
+            return Response(
+                {"errMsg": "既にキャンセル済みの予約です"}, status.HTTP_400_BAD_REQUEST
+            )
+        cancel_reservation(reservation)
+        serializer = ReservationSerializer(reservation)
+        return Response(serializer.data, status.HTTP_200_OK)
