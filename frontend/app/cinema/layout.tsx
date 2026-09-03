@@ -65,7 +65,7 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
         try {
             await axios.post("/api/cinema/logout/")
         } finally {
-            router.replace('/login')
+            router.replace('/cinema/movies')
         }
     }
 
@@ -78,6 +78,11 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
             <Toolbar />
             <Divider />
             <List>
+                <ListItem component="a" href="/cinema/mypage/" disablePadding>
+                    <ListItemButton>
+                        <ListItemText primary="マイページ" />
+                    </ListItemButton>
+                </ListItem>
                 <ListItem component="a" href="/cinema/reservations/" disablePadding>
                     <ListItemButton>
                         <ListItemText primary="予約履歴" />

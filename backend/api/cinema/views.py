@@ -134,7 +134,7 @@ class SeatView(APIView):
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated()]
+            return []
         return [IsAdminUser()]
 
         
@@ -177,7 +177,7 @@ class MovieView(APIView):
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated()]
+            return []
         return [IsAdminUser()]
 
     
@@ -225,7 +225,7 @@ class ShowtimeView(APIView):
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated()]
+            return []
         return [IsAdminUser()]
 
     
@@ -369,6 +369,10 @@ class ReservationCancelView(APIView):
 
     def post(self, request, id, format=None):
         reservation = self.get_object(id, request.user)
+        if reservation.status == Reservation.Status.CANCELLED:
+            return Response(
+                {"errMsg": "既にキャンセル済みの予約です"}, status.HTTP_400_BAD_REQUEST
+            )
         try:
             cancel_reservation(reservation)
         except AlreadyCheckedIn as e:
@@ -446,6 +450,7 @@ class MyPointView(APIView):
     """
     自分のポイント残高を取得
     """
+    permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
         user_point, _ = UserPoint.objects.get_or_create(user=request.user)
         return Response(UserPointSerializer(user_point).data, status.HTTP_200_OK)
@@ -561,6 +566,8 @@ class MeView(APIView):
         return Response({
             "user_id": request.user.id,
             "username": request.user.username,
+            "first_name": request.user.first_name,
+            "last_name": request.user.last_name,
             "is_staff_member": request.user.is_staff_member,
             "is_staff": request.user.is_staff,
         }, status=200)

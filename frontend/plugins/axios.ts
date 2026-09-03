@@ -41,7 +41,6 @@ axios_instance.interceptors.response.use(
             "/api/cinema/login/",
             "/api/cinema/logout/",
             "/api/cinema/retry/",
-            "/api/cinema/me/",
         ]
 
         if (excludedUrls.includes(originalRequest.url)) {
@@ -59,8 +58,6 @@ axios_instance.interceptors.response.use(
             return axios_instance(originalRequest)
 
         } catch (refreshError) {
-            // Refreshにも失敗した場合はログイン画面へ
-            window.location.href = "/login"
 
             return Promise.reject(refreshError)
         }
@@ -77,8 +74,7 @@ export const logout = async () => {
     try {
         await axios_instance.post("/api/cinema/logout/")
     } finally {
-        // APIの成否にかかわらずログイン画面へ戻す
-        window.location.href = "/login"
+        window.location.href = "/cinema/movies"
     }
 }
 
