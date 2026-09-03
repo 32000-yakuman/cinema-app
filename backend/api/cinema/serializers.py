@@ -123,6 +123,7 @@ class ReservationSerializer(serializers.ModelSerializer):
     start_time = serializers.DateTimeField(source="showtime.start_time", read_only=True)
     end_time = serializers.DateTimeField(source="showtime.end_time", read_only=True)
 
+    
     class Meta:
         model = Reservation
         fields = [
@@ -161,6 +162,16 @@ class PaymentCreateSerializer(serializers.Serializer):
     """
     method = serializers.ChoiceField(choices=Payment.Method)
 
+    def validate(self,attrs):
+        reservation = self.context["reservation"]
+        # 二重払いを防ぐため
+        if hasattr(reservation, "payment"):
+            raise serializers.ValidationError("この予約はすでに決済手続き済みです")        
+        # キャンセル済み予約をポイント決済させないため
+        if reservation.status != Reservation.Status.PENDING:
+            raise serializers.ValidationError("この予約は決済できる状態ではありません(キャンセル済みの可能性があります)")
+        return attrs
+
     def create(self, validated_data):
         reservation = self.context["reservation"]
         user = self.context["request"].user
@@ -192,6 +203,7 @@ class PaymentCreateSerializer(serializers.Serializer):
                     status=Payment.Status.PENDING, amount=reservation.total_price,
                 )
         return payment
+
 
 class StaffReservationSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)

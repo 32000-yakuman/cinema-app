@@ -1,9 +1,9 @@
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.db import models, IntegrityError
+from django.db import models, IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,7 +18,7 @@ from .models import (
     Reservation, ReservationSeat, Payment,
     UserPoint, SeatLimitExceeded,
     create_reservation, cancel_reservation,
-    InvalidSeatSelection
+    InvalidSeatSelection, AlreadyCheckedIn
 )
 from .serializers import (
     TheaterSerializer, ScreenSerializer, SeatSerializer,
@@ -289,7 +289,16 @@ class ReservationView(APIView):
     def get(self, request, id=None, format=None):        
         # ログイン中のユーザー自身の予約のみ返す
         if id is None:
-            queryset = Reservation.objects.filter(user=request.user).order_by('-reserved_at')
+            queryset = Reservation.objects.filter(
+                user=request.user
+            ).select_related(
+                'showtime',
+                'showtime__movie',
+                'showtime__screen',
+                'payment',
+            ).prefetch_related(
+                'reservationseat_set__seat',
+            ).order_by('-reserved_at')
             serializer = ReservationSerializer(queryset, many=True)
         else:
             reservation = self.get_object(id, request.user)
@@ -340,9 +349,12 @@ class ReservationPaymentView(APIView):
             data=request.data, context={"reservation": reservation, "request": request}
         )
         serializer.is_valid(raise_exception=True)
-        payment = serializer.save()
+        try:
+            payment = serializer.save()
+        except IntegrityError:
+            raise Response({"errMsg": "この予約はすでに決済手続き済みです"}, status.HTTP_409_CONFLICT)
         return Response(PaymentSerializer(payment).data, status.HTTP_201_CREATED)
-
+    
 
 class ReservationCancelView(APIView):
     """
@@ -357,7 +369,10 @@ class ReservationCancelView(APIView):
 
     def post(self, request, id, format=None):
         reservation = self.get_object(id, request.user)
-        cancel_reservation(reservation)
+        try:
+            cancel_reservation(reservation)
+        except AlreadyCheckedIn as e:
+            return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status.HTTP_200_OK)
 
@@ -368,6 +383,8 @@ class ReservationPaymentConfirmView(APIView):
     """
     permission_classes = [IsCounterStaff]
 
+    # TOCTOUを防ぐため
+    @transaction.atomic
     def patch(self, request, id, format=None):
         reservation = get_object_or_404(Reservation, pk=id)
         payment = get_object_or_404(Payment, reservation=reservation)
@@ -614,7 +631,7 @@ class AdminUserView(APIView):
         return Response(serializer.data, status.HTTP_200_OK)
 
 
-class AdminUserDatailView(APIView):
+class AdminUserDetailView(APIView):
     """"
     管理者用のユーザー権限更新
     """
@@ -686,6 +703,9 @@ class AdminReservationCancelView(APIView):
             return Response(
                 {"errMsg": "既にキャンセル済みの予約です"}, status.HTTP_400_BAD_REQUEST
             )
-        cancel_reservation(reservation)
+        try:
+            cancel_reservation(reservation)
+        except AlreadyCheckedIn as e:
+            raise Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status.HTTP_200_OK)

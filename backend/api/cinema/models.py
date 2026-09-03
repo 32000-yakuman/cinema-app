@@ -193,9 +193,17 @@ def create_reservation(user, showtime, seat_ids):
     reservation.save()
     return reservation
 
+class AlreadyCheckedIn(Exception):
+    """
+    チェックイン済みの予約はキャンセル不可
+    """
+    pass
+
 # キャンセル時に予約座席を消去
 @transaction.atomic
 def cancel_reservation(reservation):
+    if reservation.checked_in_at:
+        raise AlreadyCheckedIn("チェックイン済みの予約はキャンセルできません")
     reservation.status = Reservation.Status.CANCELLED
     reservation.save()
     ReservationSeat.objects.filter(reservation=reservation).delete()
