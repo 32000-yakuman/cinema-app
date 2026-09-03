@@ -118,12 +118,16 @@ class ReservationSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_status = serializers.CharField(source="payment.status", read_only=True)
     payment_status_display = serializers.CharField(source="payment.get_status_display", read_only=True)
+    movie_title = serializers.CharField(source="showtime.movie.title", read_only=True)
+    screen_name = serializers.CharField(source="showtime.screen.name", read_only=True)
+    start_time = serializers.DateTimeField(source="showtime.start_time", read_only=True)
+    end_time = serializers.DateTimeField(source="showtime.end_time", read_only=True)
 
     class Meta:
         model = Reservation
         fields = [
-            'id', 'user', 'showtime', 'status', 'status_display',
-            'reserved_at', 'total_price', 'seats',
+            'id', 'user', 'showtime', 'movie_title', 'screen_name', 'start_time', 'end_time',
+            'status', 'status_display', 'reserved_at', 'total_price', 'seats',
             'payment_status', 'payment_status_display'
         ]
         read_only_fields = ['user', 'status', 'reserved_at', 'total_price']

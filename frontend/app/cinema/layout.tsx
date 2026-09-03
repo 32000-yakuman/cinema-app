@@ -78,6 +78,11 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
             <Toolbar />
             <Divider />
             <List>
+                <ListItem component="a" href="/cinema/reservations/" disablePadding>
+                    <ListItemButton>
+                        <ListItemText primary="予約履歴" />
+                    </ListItemButton>
+                </ListItem>
                 <ListItem component="a" href="/cinema/movies/" disablePadding>
                     <ListItemButton>
                         <ListItemText primary="上映中の映画一覧" />
