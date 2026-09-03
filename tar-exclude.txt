@@ -1,3 +1,4 @@
+cinema-app/node_modules
 cinema-app/frontend/node_modules
 cinema-app/frontend/.next
 cinema-app/backend/.venv
