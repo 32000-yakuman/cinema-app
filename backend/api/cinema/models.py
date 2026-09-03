@@ -1,5 +1,6 @@
 from django.db import models, transaction
 from django.conf import settings
+import uuid
 
 
 class Theater(models.Model):
@@ -99,6 +100,14 @@ class Reservation(models.Model):
     reserved_at = models.DateTimeField(auto_now_add=True, verbose_name="予約日時")
     total_price = models.PositiveIntegerField(verbose_name="合計金額")
     checked_in_at = models.DateTimeField(null=True, blank=True, verbose_name="来場確認日時")
+
+    # チェックインQRコード用トークン
+    checkin_token = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        verbose_name="チェックイン用トークン"
+    )
 
     class Status(models.TextChoices):
         PENDING = "pending", "仮押さえ"  
