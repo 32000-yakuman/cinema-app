@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../plugins/axios"
+import { getApiErrorMessage } from "../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -61,8 +62,10 @@ export default function MyPage() {
                 }
 
                 setErrorMessage(
-                    err.response?.data?.errMsg ||
-                    "マイページの情報取得に失敗しました。"
+                    getApiErrorMessage(
+                        err,
+                        "マイページの情報取得に失敗しました。"
+                    )
                 )
             } finally {
                 setLoading(false)

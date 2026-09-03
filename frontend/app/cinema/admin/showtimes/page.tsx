@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import { getApiErrorMessage } from "../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -169,7 +170,10 @@ export default function AdminShowtimesPage() {
             })
             .catch((err) => {
                 setErrorMessage(
-                    err.response?.data?.errMsg || '削除に失敗しました。既に予約が存在する可能性があります。'
+                    getApiErrorMessage(
+                        err,
+                        '削除に失敗しました。既に予約が存在する可能性があります。'
+                    )
                 )
                 setDeleteTarget(null)
             })

@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import {getApiErrorMessage} from "../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -71,7 +72,12 @@ export default function AdminUsersPage() {
                 setUsers((prev) =>
                     prev.map((u) => (u.id === user.id ? { ...u, [field]: user[field] } : u))
                 )
-                setErrorMessage(err.response?.data?.errMsg || '更新に失敗しました。')
+                setErrorMessage(
+                    getApiErrorMessage(
+                        err,
+                        '更新に失敗しました。'
+                    )
+                )
             })
     }
 
@@ -90,7 +96,10 @@ export default function AdminUsersPage() {
             })
             .catch((err) => {
                 setErrorMessage(
-                    err.response?.data?.errMsg || 'ユーザー削除に失敗しました。'
+                    getApiErrorMessage(
+                        err,
+                        'ユーザー削除に失敗しました。'
+                    )
                 );
             });
     };

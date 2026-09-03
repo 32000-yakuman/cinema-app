@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import { getApiErrorMessage } from "../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -147,7 +148,10 @@ export default function AdminTheatersPage() {
             })
             .catch(() => {
                 setErrorMessage(
-                    '削除に失敗しました。スクリーンが登録されている可能性があります。'
+                    getApiErrorMessage(
+                        err,
+                        '削除に失敗しました。スクリーンが登録されている可能性があります。'
+                    )
                 )
                 setDeleteTarget(null)
             })

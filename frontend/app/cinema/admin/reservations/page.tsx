@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import { getApiErrorMessage } from "../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -80,7 +81,9 @@ export default function AdminReservationsPage() {
                 fetchReservations()
             })
             .catch((err) => {
-                setErrorMessage(err.response?.data?.errMsg || 'キャンセルに失敗しました。')
+                setErrorMessage(
+                    getApiErrorMessage(err, 'キャンセルに失敗しました。')
+                )
                 setCancelTarget(null)
             })
     }

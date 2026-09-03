@@ -15,6 +15,7 @@ import {
 } from "@mui/material"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { getApiErrorMessage } from "../../../plugins/apiError"
 
 type ReservationSeat = {
     id: number
@@ -58,8 +59,7 @@ export default function ReservationsPage() {
             })
             .catch((err) => {
                 setErrorMessage(
-                    err.response?.data?.errMsg ||
-                    "予約履歴の取得に失敗しました。"
+                    getApiErrorMessage(err, "予約履歴の取得に失敗しました。")
                 )
             })
             .finally(() => {
@@ -90,8 +90,7 @@ export default function ReservationsPage() {
             })
             .catch((err) => {
                 setErrorMessage(
-                    err.response?.data?.errMsg ||
-                    "予約のキャンセルに失敗しました。"
+                    getApiErrorMessage(err, "予約のキャンセルに失敗しました。")
                 )
             })
     }

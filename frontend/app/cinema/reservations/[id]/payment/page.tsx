@@ -74,7 +74,12 @@ export default function Page() {
                 router.push(`/cinema/reservations/${reservationId}`)
             })
             .catch((err) => {
-                setErrorMessage(err.response?.data?.errMsg || '決済に失敗しました。もう一度お試しください。')
+                setErrorMessage(
+                    getApiErrorMessage(
+                        err,
+                        '決済に失敗しました。もう一度お試しください。'
+                    )
+                )
                 setSubmitting(false)
             })
     }

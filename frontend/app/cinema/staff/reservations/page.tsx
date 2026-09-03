@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import { getApiErrorMessage } from "../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -59,7 +60,7 @@ export default function Page() {
                 handleSearch()
             })
             .catch((err) => {
-                setErrorMessage(err.response?.data?.errMsg || '決済確定に失敗しました。')
+                setErrorMessage(getApiErrorMessage(err, '決済確定に失敗しました。'))
             })
     }
 
@@ -71,7 +72,7 @@ export default function Page() {
                 handleSearch()
             })
             .catch((err) => {
-                setErrorMessage(err.response?.data?.errMsg || 'チェックインに失敗しました。')
+                setErrorMessage(getApiErrorMessage(err, 'チェックインに失敗しました。'))
             })
     }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../../plugins/axios"
+import {getApiErrorMessage} from "../../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -95,9 +96,19 @@ export default function Page() {
                     }
                     setSelectedIds([])
                 } else if (err.response?.status === 400) {
-                    setErrorMessage(err.response?.data?.errMsg || '予約内容に誤りがあります。')
+                    setErrorMessage(
+                        getApiErrorMessage(
+                            err, 
+                            '予約内容に誤りがあります。'
+                        )
+                    )
                 } else {
-                    setErrorMessage('予約に失敗しました。もう一度お試しください。')
+                    setErrorMessage(
+                        getApiErrorMessage(
+                            err,
+                            '予約に失敗しました。もう一度お試しください。'
+                        )
+                    )
                 }
             })
     }

@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import { getApiErrorMessage} from "../../../../plugins/apiError"
 import {
     Alert,
 Box,
@@ -125,7 +126,7 @@ export default function AdminMoviesPage() {
                 fetchMovies()
             })
             .catch((err) => {
-                const detail = err.response?.data
+                const detail = getApiErrorMessage(err, '保存に失敗しました。入力内容を確認してください。')
                 setErrorMessage(
                     detail && typeof detail === 'object'
                         ? Object.values(detail).flat().join(' / ')

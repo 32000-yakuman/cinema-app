@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import { getApiErrorMessage } from "../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -88,9 +89,9 @@ export default function AdminScreensPage() {
         axios
             .get('/api/cinema/theaters/')
             .then((res) => setTheaters(res.data))
-            .catch(() => {
+            .catch((err) => {
                 setErrorMessage(
-                    '劇場一覧の取得に失敗しました。'
+                    getApiErrorMessage(err,'劇場一覧の取得に失敗しました。')
                 )
             })
     }
@@ -190,11 +191,13 @@ export default function AdminScreensPage() {
                 setDeleteTarget(null)
                 fetchScreens()
             })
-            .catch(() => {
+            .catch((err) => {
                 setErrorMessage(
-                    '削除に失敗しました。座席や上映回が登録されている可能性があります。'
+                    getApiErrorMessage(
+                        err,
+                        '削除に失敗しました。スクリーンが登録されている可能性があります。'
+                    )
                 )
-
                 setDeleteTarget(null)
             })
     }
