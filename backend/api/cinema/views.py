@@ -408,6 +408,26 @@ class ReservationCheckInView(APIView):
         reservation = serializer.save()
         return Response(ReservationSerializer(reservation).data, status.HTTP_200_OK)
 
+
+class ReservationCheckInByTokenView(APIView):
+    """
+    窓口職員がQRコード(checkin_token)を読み取って来場確認を行う
+    """
+    permission_classes = [IsCounterStaff]
+
+    def post(self, request, format=None):
+        token = request.data.get('token')
+        if not token:
+            return Response(
+                {"detail": "tokenは必須です"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        reservation = get_object_or_404(Reservation, checkin_token=token)
+        serializer = CheckInSerializer(context={"reservation": reservation})
+        reservation = serializer.save()
+        return Response(ReservationSerializer(reservation).data, status.HTTP_200_OK)
+
+
 class StaffReservationSearchView(APIView):
     """
     窓口の予約検索(予約番号・ユーザー名・氏名)

@@ -23,6 +23,7 @@ urlpatterns = [
     path('reservations/<int:id>/cancel/', views.ReservationCancelView.as_view()),
     path('points/me/', views.MyPointView.as_view()),
     path('staff/reservations/', views.StaffReservationSearchView.as_view()),
+    path('staff/checkin-by-token/', views.ReservationCheckInByTokenView.as_view()),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('login/', views.LoginView.as_view()),

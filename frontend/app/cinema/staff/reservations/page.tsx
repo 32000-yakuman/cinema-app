@@ -14,7 +14,8 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { Scanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
+import { useState, useRef } from 'react';
 
 type StaffReservationSeat = {
     id: number;
@@ -45,6 +46,11 @@ export default function Page() {
     const [results, setResults] = useState<Array<StaffReservation>>([])
     const [message, setMessage] = useState('')
     const [errorMessage, setErrorMessage] = useState('')
+    
+
+    // QRスキャナー関連
+    const [isScanning, setIsScanning] = useState(false)
+    const lastScannedTokenRef = useRef<string | null>(null)
 
     const handleSearch = () => {
         axios.get(`/api/cinema/staff/reservations/?query=${encodeURIComponent(query)}`)
@@ -52,6 +58,7 @@ export default function Page() {
             .then((data) => { setResults(data) })
             .catch(() => { setErrorMessage('検索に失敗しました。')})
     }
+
 
     const handleConfirmPayment = (reservationId: number) => {
         axios.patch(`/api/cinema/reservations/${reservationId}/payment/confirm/`)
@@ -77,11 +84,65 @@ export default function Page() {
     }
 
 
+    const handleCheckInByToken = (token : string) => {
+        if (token === lastScannedTokenRef.current){
+            return
+        }
+        lastScannedTokenRef.current = token    
+        
+        
+        axios.post('/api/cinema/staff/checkin-by-token/', { token })
+            .then(() => {
+                setMessage('チェックインしました')
+                setIsScanning(false)
+                handleSearch()
+            })
+            .catch((err) => {
+                setErrorMessage(getApiErrorMessage(err, 'チェックインに失敗しました。'))
+            })
+            .finally(() => {
+                // 3秒後にクールダウンを解除し、同じtokenの再読み取り(リトライ等)を許可する
+                setTimeout(() => {
+                    lastScannedTokenRef.current = null
+                }, 3000)
+            })
+    }
+
+
     return (
         <Container sx={{ marginTop: 4 }}>
             <Typography variant="h5" gutterBottom>
                 窓口： 予約検索
             </Typography>
+
+            <Box sx={{ marginBottom: 3 }}>
+                <Button
+                    variant={isScanning ? "outlined" : "contained"}
+                    color={isScanning ? "error" : "primary"}
+                    onClick={() => {
+                        setIsScanning((prev) => !prev)
+                        lastScannedTokenRef.current = null
+                    }}
+                >
+                    {isScanning ?  "QRスキャンを終了" : "QRをスキャン"}
+                </Button>
+
+                {isScanning && (
+                    <Box sx={{ maxWidth: 400, marginTop: 2 }}>
+                        <Scanner
+                            onScan={(detectedCodes:IDetectedBarcode[]) => {
+                                if (detectedCodes.length > 0) {
+                                    handleCheckInByToken(detectedCodes[0].rawValue)
+                                }
+                            }}
+                            onError={(error:any) => {
+                                console.error('QRスキャナーのエラー', error)
+                                setErrorMessage('カメラの起動に失敗しました。カメラへのアクセスを許可してください。')
+                            }}
+                        />
+                    </Box>                    
+                )}
+            </Box>
 
             <Box sx={{ display: "flex", gap: 2, marginBottom: 3}}>
                 <TextField

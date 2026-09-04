@@ -122,14 +122,25 @@ class ReservationSerializer(serializers.ModelSerializer):
     screen_name = serializers.CharField(source="showtime.screen.name", read_only=True)
     start_time = serializers.DateTimeField(source="showtime.start_time", read_only=True)
     end_time = serializers.DateTimeField(source="showtime.end_time", read_only=True)
+    checkin_token = serializers.SerializerMethodField()
 
-    
+    def get_checkin_token(self, obj):
+        """
+        決済確定済み、かつ未チェックインの予約のみtokenを返す
+        """
+        if not hasattr(obj, "payment") or obj.payment.status != Payment.Status.CONFIRMED:
+            return None
+        if obj.checked_in_at:
+            return None
+        return str(obj.checkin_token)
+
+        
     class Meta:
         model = Reservation
         fields = [
             'id', 'user', 'showtime', 'movie_title', 'screen_name', 'start_time', 'end_time',
             'status', 'status_display', 'reserved_at', 'total_price', 'seats',
-            'payment_status', 'payment_status_display'
+            'payment_status', 'payment_status_display', 'checkin_token'
         ]
         read_only_fields = ['user', 'status', 'reserved_at', 'total_price']
 

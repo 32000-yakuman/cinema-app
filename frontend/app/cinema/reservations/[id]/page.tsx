@@ -11,6 +11,7 @@ import {
     Divider,
     Typography,
 } from '@mui/material';
+import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation'
 
@@ -30,6 +31,9 @@ type ReservationData = {
     reserved_at: string;
     total_price: number;
     seats: Array<ReservationSeatData>;
+    payment_status: string;
+    payment_status_display: string;
+    checkin_token: string | null;
 }
 
 
@@ -98,7 +102,37 @@ export default function Page() {
                     <Divider sx={{ marginY: 2 }} />
                     <Typography variant="h6">
                         合計: {reservation.total_price.toLocaleString()}円
-                    </Typography>                    
+                    </Typography>
+
+                    {reservation.status !== 'cancelled' && (
+                        <>
+                            <Divider sx={{ marginY: 2 }} />
+                            {reservation.checkin_token ? (
+                                <Box sx={{ textAlign: "center" }}>
+                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                        入場時に窓口でこちらのQRコードをご提示ください
+                                    </Typography>
+                                    <Box
+                                        sx={{
+                                            display: "inline-block",
+                                            p: 2,
+                                            bgcolor: "white",
+                                            borderRadius: 1,
+                                        }}
+                                    >
+                                        <QRCodeSVG value={reservation.checkin_token} size={180} />
+                                    </Box>
+                                </Box>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary" align="center">
+                                    {reservation.payment_status === 'confirmed'
+                                        ? 'チェックイン済みです'
+                                        : 'お支払いが完了するとQRコードが表示されます'}
+                                </Typography>
+                            )}
+                        </>
+                    )} 
+
                 </CardContent>
             </Card>
 
