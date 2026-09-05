@@ -1,7 +1,9 @@
 'use client'
 
 import axios from "../../../../plugins/axios"
+import {getApiErrorMessage} from "../../../../plugins/apiError"
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -9,6 +11,7 @@ import {
     Chip,
     Container,
     Divider,
+    Snackbar,
     Typography,
 } from '@mui/material';
 import { QRCodeSVG } from 'qrcode.react';
@@ -34,6 +37,7 @@ type ReservationData = {
     payment_status: string;
     payment_status_display: string;
     checkin_token: string | null;
+    checked_in_at: string | null;
 }
 
 
@@ -44,6 +48,7 @@ export default function Page() {
         
     
     const [reservation, setReservation] = useState<ReservationData | null>(null);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const fetchReservation = () => {
         axios.get(`/api/cinema/reservations/${reservationId}/`)
@@ -61,6 +66,9 @@ export default function Page() {
         axios.post(`/api/cinema/reservations/${reservationId}/cancel/`)    
             .then(() => {
                 fetchReservation()
+            })
+            .catch((err) => {
+                setErrorMessage(getApiErrorMessage(err, 'キャンセルに失敗しました。'))
             })
     }
 
@@ -139,14 +147,27 @@ export default function Page() {
             
             {reservation.status !== 'cancelled' && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-                    <Button variant="outlined" color="error" onClick={handleCancel}>
-                        予約をキャンセルする
-                    </Button>
+                    {!reservation.checked_in_at && reservation.payment_status !== 'confirmed' ? (
+                        <Button variant="outlined" color="error" onClick={handleCancel}>
+                            予約をキャンセルする
+                        </Button>
+                    ) : (
+                        <Box />
+                    )}
                     <Button variant="text" onClick={() => router.push('/cinema/movies')}>
                         映画一覧に戻る    
                     </Button>
                 </Box>
             )}
+
+            <Snackbar
+                open={!!errorMessage}
+                autoHideDuration={4000}
+                onClose={() => setErrorMessage('')}
+                >
+
+                    <Alert severity="error">{errorMessage}</Alert>
+                </Snackbar>
         </Container>
     );
 }

@@ -182,9 +182,9 @@ class ReservationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'showtime', 'movie_title', 'screen_name', 'start_time', 'end_time',
             'status', 'status_display', 'reserved_at', 'total_price', 'seats',
-            'payment_status', 'payment_status_display', 'checkin_token'
+            'payment_status', 'payment_status_display', 'checkin_token', 'checked_in_at'
         ]
-        read_only_fields = ['user', 'status', 'reserved_at', 'total_price']
+        read_only_fields = ['user', 'status', 'reserved_at', 'total_price', 'checked_in_at']
 
 
 class ReservationCreateSerializer(serializers.Serializer):

@@ -208,19 +208,35 @@ class AlreadyCheckedIn(Exception):
     """
     pass
 
+
+class PaymentAlreadyConfirmed(Exception):
+    """
+    決済確定済みの予約は、通常のキャンセル操作では取り消せない
+    (現金・ポイントいずれの決済方法でも共通)
+    """
+    pass
+
 # キャンセル時に予約座席を消去
 @transaction.atomic
-def cancel_reservation(reservation):
+def cancel_reservation(reservation, allow_after_payment_confirmed=False):
     if reservation.checked_in_at:
         raise AlreadyCheckedIn("チェックイン済みの予約はキャンセルできません")
+
+    payment = getattr(reservation, "payment", None)
+    payment_was_confirmed = payment is not None and payment.status == Payment.Status.CONFIRMED
+
+    if payment_was_confirmed and not allow_after_payment_confirmed:
+        raise PaymentAlreadyConfirmed(
+            "決済確定済みの予約はキャンセルできません。窓口までお問い合わせください"
+        )
+
     reservation.status = Reservation.Status.CANCELLED
     reservation.save()
     ReservationSeat.objects.filter(reservation=reservation).delete()
 
     # ポイント決済だったら、ポイントを返還
-    if hasattr(reservation, "payment") and reservation.payment.method == Payment.Method.POINT:
-        payment = reservation.payment
-        if payment.status == Payment.Status.CONFIRMED:
+    if payment_was_confirmed:
+        if payment.method == Payment.Method.POINT:        
             user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=reservation.user)
             user_point.balance += payment.points_used
             user_point.save()
@@ -228,9 +244,8 @@ def cancel_reservation(reservation):
                 user=reservation.user, reservation=reservation,
                 type=PointTransaction.Type.REFUND, amount=payment.points_used,
             )
-            payment.status = Payment.Status.CANCELLED
-            payment.save()
-
+        payment.status = Payment.Status.CANCELLED
+        payment.save()
 
 
 class Payment(models.Model):

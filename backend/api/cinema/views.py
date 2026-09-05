@@ -1,3 +1,4 @@
+import uuid
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db import models, IntegrityError, transaction
@@ -18,7 +19,8 @@ from .models import (
     Reservation, ReservationSeat, Payment,
     UserPoint, SeatLimitExceeded,
     create_reservation, cancel_reservation,
-    InvalidSeatSelection, AlreadyCheckedIn
+    InvalidSeatSelection, AlreadyCheckedIn,
+    PaymentAlreadyConfirmed
 )
 from .serializers import (
     TheaterSerializer, ScreenSerializer, SeatSerializer,
@@ -352,7 +354,7 @@ class ReservationPaymentView(APIView):
         try:
             payment = serializer.save()
         except IntegrityError:
-            raise Response({"errMsg": "この予約はすでに決済手続き済みです"}, status.HTTP_409_CONFLICT)
+            return Response({"errMsg": "この予約はすでに決済手続き済みです"}, status.HTTP_409_CONFLICT)
         return Response(PaymentSerializer(payment).data, status.HTTP_201_CREATED)
     
 
@@ -375,7 +377,7 @@ class ReservationCancelView(APIView):
             )
         try:
             cancel_reservation(reservation)
-        except AlreadyCheckedIn as e:
+        except (AlreadyCheckedIn, PaymentAlreadyConfirmed) as e:
             return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status.HTTP_200_OK)
@@ -421,6 +423,11 @@ class ReservationCheckInByTokenView(APIView):
             return Response(
                 {"detail": "tokenは必須です"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        try: 
+            token = uuid.UUID(str(token))
+        except (ValueError, AttributeError, TypeError):
+            return Response({"detail": "tokenの形式が不正です"}, status=status.HTTP_400_BAD_REQUEST)
 
         reservation = get_object_or_404(Reservation, checkin_token=token)
         serializer = CheckInSerializer(context={"reservation": reservation})
@@ -731,7 +738,7 @@ class AdminReservationCancelView(APIView):
                 {"errMsg": "既にキャンセル済みの予約です"}, status.HTTP_400_BAD_REQUEST
             )
         try:
-            cancel_reservation(reservation)
+            cancel_reservation(reservation, allow_after_payment_confirmed=True)
         except AlreadyCheckedIn as e:
             return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         serializer = ReservationSerializer(reservation)
