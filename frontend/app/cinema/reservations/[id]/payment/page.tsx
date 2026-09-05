@@ -1,6 +1,7 @@
 'use client'
 
 import axios from "../../../../../plugins/axios"
+import { getApiErrorMessage } from "../../../../../plugins/apiError"
 import {
     Alert,
     Box,
@@ -50,13 +51,13 @@ export default function Page() {
     const [submitting, setSubmitting] = useState(false)
 
     const fetchReservation = () => {
-        axios.get(`/api/cinema/reservations/${reservationId}`)
+        axios.get(`/api/cinema/reservations/${reservationId}/`)
             .then((res) => res.data)
             .then((data) => { setReservation(data) })
     }
 
     const fetchPoints = () => {
-        axios.get('/api/cinema/points/me')
+        axios.get('/api/cinema/points/me/')
             .then((res) => res.data)
             .then((data : PointData) => {setPointBalance(data.balance) })
             .catch(() => { setPointBalance(0) })

@@ -733,6 +733,6 @@ class AdminReservationCancelView(APIView):
         try:
             cancel_reservation(reservation)
         except AlreadyCheckedIn as e:
-            raise Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
+            return Response({"errMsg": str(e)}, status.HTTP_400_BAD_REQUEST)
         serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status.HTTP_200_OK)

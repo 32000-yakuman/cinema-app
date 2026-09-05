@@ -159,7 +159,7 @@ export default function AdminUsersPage() {
                         ))}
                         {users.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} align="center">
+                                <TableCell colSpan={7} align="center">
                                     ユーザーがいません。
                                 </TableCell>
                             </TableRow>

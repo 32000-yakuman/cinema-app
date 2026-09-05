@@ -64,9 +64,12 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
     const handleLogout = async () => {
         try {
             await axios.post("/api/cinema/logout/")
-        } finally {
-            router.replace('/cinema/movies')
+            setIsLoggedIn(false)
+            router.replace("/cinema/movies")
+        } catch(error) {
+            console.error(error)
         }
+
     }
 
     const toggleDrawer = (open: boolean) => {

@@ -11,7 +11,7 @@ export default function Home() {
     axios
       .get("/api/cinema/me/")
       .then(() => {
-        router.replace("/cinema/products/");
+        router.replace("/cinema/movies/");
       })
       .catch(() => {
         router.replace("/login");

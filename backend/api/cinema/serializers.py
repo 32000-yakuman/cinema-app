@@ -23,6 +23,40 @@ class TheaterSerializer(serializers.ModelSerializer):
 class ScreenSerializer(serializers.ModelSerializer):
     theater_name = serializers.CharField(source='theater.name', read_only=True)
 
+    def update(self, instance, validated_data):
+        row_count = validated_data.get("row_count", instance.row_count)
+        col_count = validated_data.get("col_count", instance.col_count)
+
+        seat_layout_changed = (
+            row_count != instance.row_count
+            or col_count != instance.col_count
+        )
+
+        if seat_layout_changed:
+            now = timezone.now()
+
+            # 未来の上映回に予約が存在する場合は変更不可
+            has_future_reservation = ReservationSeat.objects.filter(
+                reservation__showtime__screen=instance,
+                reservation__showtime__start_time__gt=now,
+            ).exists()
+
+            if has_future_reservation:
+                raise serializers.ValidationError({
+                    "未来の上映回に予約が存在するため、座席数を変更できません。"
+                })
+
+        with transaction.atomic():
+            if seat_layout_changed:
+                Seat.objects.filter(screen=instance).delete()
+
+            instance = super().update(instance, validated_data)
+
+            if seat_layout_changed:
+                self._generate_seats(instance)
+
+        return instance
+
     class Meta:
         model = Screen
         fields = ['id', 'theater', 'theater_name', 'name', 'row_count', 'col_count']
@@ -34,6 +68,12 @@ class ScreenSerializer(serializers.ModelSerializer):
 
     def _generate_seats(self, screen):
         import string
+
+        if screen.row_count > 26:
+            raise serializers.ValidationError(
+            {"row_count": "座席の行数は26以下にしてください"}
+        )
+
         seats = [
             Seat(
                 screen=screen,
@@ -131,6 +171,8 @@ class ReservationSerializer(serializers.ModelSerializer):
         if not hasattr(obj, "payment") or obj.payment.status != Payment.Status.CONFIRMED:
             return None
         if obj.checked_in_at:
+            return None
+        if obj.status != Reservation.Status.CONFIRMED:
             return None
         return str(obj.checkin_token)
 
@@ -267,6 +309,11 @@ class CheckInSerializer(serializers.Serializer):
     """
     def save(self, **kwargs):
         reservation = self.context["reservation"]
+
+        if reservation.status != Reservation.Status.CONFIRMED:
+            raise serializers.ValidationError(
+                "確定済みの予約ではないため、チェックインできません"
+            )
 
         if reservation.checked_in_at:
             raise serializers.ValidationError("すでにチェックイン済みです")
