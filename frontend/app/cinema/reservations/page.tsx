@@ -39,6 +39,7 @@ type Reservation = {
     seats: ReservationSeat[]
     payment_status: string | null
     payment_status_display: string
+    expires_at: string | null;
 }
 
 export default function ReservationsPage() {

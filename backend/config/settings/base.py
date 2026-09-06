@@ -189,3 +189,5 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # browserのHTTPS通信を認識
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# PENDING予約の座席を仮押さえする時間（分）
+RESERVATION_HOLD_MINUTES = 10

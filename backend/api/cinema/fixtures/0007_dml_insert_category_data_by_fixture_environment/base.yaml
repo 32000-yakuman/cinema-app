@@ -1,4 +1,0 @@
-- model: cinema.Category
-  fields:
-    name: 共通
-    parent_category: null

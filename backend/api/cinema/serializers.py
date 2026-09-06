@@ -8,7 +8,8 @@ from .models import (
     Theater, Screen, Seat, Movie, Showtime,
     Reservation, ReservationSeat, Payment,
     UserPoint, PointTransaction,
-    POINT_EARN_PER_VIEW, POINT_REDEEM_COST
+    POINT_EARN_PER_VIEW, POINT_REDEEM_COST,
+    expire_pending_reservations
 )
 from accounts.models import CustomUser
 
@@ -182,7 +183,8 @@ class ReservationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'showtime', 'movie_title', 'screen_name', 'start_time', 'end_time',
             'status', 'status_display', 'reserved_at', 'total_price', 'seats',
-            'payment_status', 'payment_status_display', 'checkin_token', 'checked_in_at'
+            'payment_status', 'payment_status_display', 'checkin_token', 'checked_in_at', 
+            'expires_at',
         ]
         read_only_fields = ['user', 'status', 'reserved_at', 'total_price', 'checked_in_at']
 
@@ -193,11 +195,27 @@ class ReservationCreateSerializer(serializers.Serializer):
     実際の作成処理はmodels.pyのcreate_reservation()を呼び出す
     """
     showtime_id = serializers.IntegerField()
+
     seat_ids = serializers.ListField(
         child=serializers.IntegerField(),
         allow_empty=False
     )
+    
+    def validate_seat_ids(self, value):
+        # 1回の予約操作では最大5席まで
+        if len(value) > 5:
+            raise serializers.ValidationError(
+                "一度の予約操作では5席まで指定できます。"
+            )
 
+        # 同じ座席IDの重複指定を禁止
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError(
+                "同じ座席を複数指定することはできません。"
+            )
+
+        return value
+    
 
 class PaymentSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -215,46 +233,119 @@ class PaymentCreateSerializer(serializers.Serializer):
     """
     method = serializers.ChoiceField(choices=Payment.Method)
 
-    def validate(self,attrs):
+    def validate(self, attrs):
         reservation = self.context["reservation"]
-        # 二重払いを防ぐため
+
+        # 決済画面を開いたまま期限を過ぎた場合
+        # ここで座席を解放する
+        if (
+            reservation.status == Reservation.Status.PENDING
+            and reservation.expires_at is not None
+            and reservation.expires_at <= timezone.now()
+        ):
+            expire_pending_reservations(
+                user=reservation.user,
+                showtime=reservation.showtime
+            )
+
+            raise serializers.ValidationError(
+                "予約の有効期限が切れています。"
+                "座席を選び直してください。"
+            )
+
+        # 二重払いを防ぐ
         if hasattr(reservation, "payment"):
-            raise serializers.ValidationError("この予約はすでに決済手続き済みです")        
-        # キャンセル済み予約をポイント決済させないため
-        if reservation.status != Reservation.Status.PENDING:
-            raise serializers.ValidationError("この予約は決済できる状態ではありません(キャンセル済みの可能性があります)")
+            raise serializers.ValidationError(
+                "この予約はすでに決済手続き済みです"
+            )
+
         return attrs
 
     def create(self, validated_data):
-        reservation = self.context["reservation"]
+        reservation_id = self.context["reservation"].pk
         user = self.context["request"].user
         method = validated_data["method"]
 
         with transaction.atomic():
+            reservation = (
+                Reservation.objects
+                .select_for_update()
+                .select_related("payment")
+                .get(pk=reservation_id)
+            )
+            # 決済直前にも期限を再確認
+            if (
+                reservation.status == Reservation.Status.PENDING
+                and reservation.expires_at is not None
+                and reservation.expires_at <= timezone.now()
+            ):
+                reservation.status = Reservation.Status.CANCELLED
+                reservation.save(update_fields=["status"])
+
+                ReservationSeat.objects.filter(
+                    reservation=reservation
+                ).delete()
+
+                raise serializers.ValidationError(
+                    "予約の有効期限が切れています。"
+                    "座席を選び直してください。"
+                )
+
+            if reservation.status != Reservation.Status.PENDING:
+                raise serializers.ValidationError(
+                    "この予約は決済できる状態ではありません"
+                    "(キャンセル済みの可能性があります)"
+                )
+
+            if hasattr(reservation, "payment"):
+                raise serializers.ValidationError(
+                    "この予約はすでに決済手続き済みです"
+                )
+
             if method == Payment.Method.POINT:
-                user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=user)
+                user_point, _ = (
+                    UserPoint.objects
+                    .select_for_update()
+                    .get_or_create(user=user)
+                )
+
                 if user_point.balance < POINT_REDEEM_COST:
-                    raise serializers.ValidationError("ポイント残高が不足しています")
+                    raise serializers.ValidationError(
+                        "ポイントが不足しています"
+                    )
 
                 user_point.balance -= POINT_REDEEM_COST
                 user_point.save()
 
                 PointTransaction.objects.create(
-                    user=user, reservation=reservation,
-                    type=PointTransaction.Type.REDEEM, amount=-POINT_REDEEM_COST,
+                    user=user,
+                    reservation=reservation,
+                    type=PointTransaction.Type.REDEEM,
+                    amount=POINT_REDEEM_COST,
                 )
+
                 payment = Payment.objects.create(
-                    reservation=reservation, method=Payment.Method.POINT,
-                    status=Payment.Status.CONFIRMED, points_used=POINT_REDEEM_COST,
-                    amount=0, confirmed_at=timezone.now(),
+                    reservation=reservation,
+                    method=Payment.Method.POINT,
+                    status=Payment.Status.CONFIRMED,
+                    amount=reservation.total_price,
+                    points_used=POINT_REDEEM_COST,
+                    confirmed_at=timezone.now(),
                 )
+
                 reservation.status = Reservation.Status.CONFIRMED
-                reservation.save()
+                reservation.save(
+                    update_fields=["status"]
+                )
+
             else:
                 payment = Payment.objects.create(
-                    reservation=reservation, method=Payment.Method.CASH,
-                    status=Payment.Status.PENDING, amount=reservation.total_price,
+                    reservation=reservation,
+                    method=Payment.Method.CASH,
+                    status=Payment.Status.PENDING,
+                    amount=reservation.total_price,
                 )
+
         return payment
 
 
@@ -277,7 +368,8 @@ class StaffReservationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'username', 'screen_name', 'status', 'status_display',
             'checked_in_at', 'reserved_at', 'total_price', 'seats', 'showtime',
-            'customer_name', 'movie_title', 'payment_status', 'payment_status_display'
+            'customer_name', 'movie_title', 'payment_status', 'payment_status_display',
+            'expires_at',
         ]
         read_only_fields = ['user', 'status', 'reserved_at','total_price',]
     
@@ -286,20 +378,70 @@ class PaymentConfirmSerializer(serializers.Serializer):
     """
     窓口職員が現金決済を最終確定する
     """
+
     def save(self, **kwargs):
-        payment = self.context["payment"]
+        payment_id = self.context["payment"].pk
+        reservation_id = self.context["payment"].reservation_id
         staff_user = self.context["request"].user
 
-        if payment.status != Payment.Status.PENDING:
-            raise serializers.ValidationError("この決済はすでに確定済み、またはキャンセル済みです")
+        with transaction.atomic():
+            payment = (
+                Payment.objects
+                .select_for_update()
+                .select_related("reservation")
+                .get(pk=payment_id)
+            )
 
-        payment.status = Payment.Status.CONFIRMED
-        payment.confirmed_by = staff_user
-        payment.confirmed_at = timezone.now()
-        payment.save()
+            reservation = (
+                Reservation.objects
+                .select_for_update()
+                .get(pk=reservation_id)
+            )
 
-        payment.reservation.status = Reservation.Status.CONFIRMED
-        payment.reservation.save()
+            if payment.status != Payment.Status.PENDING:
+                raise serializers.ValidationError(
+                    "この決済はすでに確定済み、またはキャンセル済みです"
+                )
+
+            # 期限切れチェック
+            if (
+                reservation.status == Reservation.Status.PENDING
+                and reservation.expires_at is not None
+                and reservation.expires_at <= timezone.now()
+            ):
+                reservation.status = Reservation.Status.CANCELLED
+                reservation.save(
+                    update_fields=["status"]
+                )
+
+                ReservationSeat.objects.filter(
+                    reservation=reservation
+                ).delete()
+
+                payment.status = Payment.Status.CANCELLED
+                payment.save(
+                    update_fields=["status"]
+                )
+
+                raise serializers.ValidationError(
+                    "予約の有効期限が切れています。"
+                    "決済を確定できません。"
+                )
+
+            payment.status = Payment.Status.CONFIRMED
+            payment.confirmed_by = staff_user
+            payment.confirmed_at = timezone.now()
+
+            payment.save(
+                    update_fields=[
+                        "status",
+                        "confirmed_by",
+                        "confirmed_at",
+                    ]
+            )
+
+            reservation.status = Reservation.Status.CONFIRMED
+            reservation.save(update_fields=["status"])        
         return payment
 
         
@@ -310,17 +452,23 @@ class CheckInSerializer(serializers.Serializer):
     def save(self, **kwargs):
         reservation = self.context["reservation"]
 
-        if reservation.status != Reservation.Status.CONFIRMED:
-            raise serializers.ValidationError(
-                "確定済みの予約ではないため、チェックインできません"
+        with transaction.atomic():
+            reservation = (
+                Reservation.objects
+                .select_for_update()
+                .get(pk=reservation.pk)
             )
 
-        if reservation.checked_in_at:
-            raise serializers.ValidationError("すでにチェックイン済みです")
-        if not hasattr(reservation, "payment") or reservation.payment.status != Payment.Status.CONFIRMED:
-            raise serializers.ValidationError("決済が確定していないため、チェックインできません")
-
-        with transaction.atomic():
+            if reservation.status != Reservation.Status.CONFIRMED:
+                    raise serializers.ValidationError(
+                        "確定済みの予約ではないため、チェックインできません"
+                    )
+        
+            if reservation.checked_in_at:
+                raise serializers.ValidationError("すでにチェックイン済みです")
+            if not hasattr(reservation, "payment") or reservation.payment.status != Payment.Status.CONFIRMED:                
+                raise serializers.ValidationError("決済が確定していないため、チェックインできません")
+            
             reservation.checked_in_at = timezone.now()
             reservation.save()
 

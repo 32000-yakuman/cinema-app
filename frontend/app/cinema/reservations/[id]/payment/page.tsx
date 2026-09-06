@@ -32,6 +32,7 @@ type ReservationData = {
     reserved_at: string;
     total_price: number;
     seats: Array<ReservationSeatData>;
+    expires_at: string | null;
 }
 
 type PointData = {
@@ -44,11 +45,12 @@ export default function Page() {
     const params = useParams()
     const router = useRouter()
     const reservationId = params.id
-
+    
     const [reservation , setReservation] = useState<ReservationData | null>(null)
     const [pointBalance, setPointBalance] = useState<number | null>(null)
     const [errorMessage, setErrorMessage] = useState('')
     const [submitting, setSubmitting] = useState(false)
+    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
 
     const fetchReservation = () => {
         axios.get(`/api/cinema/reservations/${reservationId}/`)
@@ -83,7 +85,47 @@ export default function Page() {
                 )
                 setSubmitting(false)
             })
-    }
+        }
+
+    const canUsePoints = pointBalance !== null && pointBalance >= POINT_REDEEM_COST
+
+    useEffect(() => {
+        if (
+            !reservation?.expires_at
+            || reservation.status !== 'pending'
+        ) {
+            setRemainingSeconds(null)
+            return
+        }
+
+        const updateRemaining = () => {
+            const seconds = Math.max(
+                0,
+                Math.ceil(
+                    (
+                        new Date(
+                            reservation.expires_at
+                        ).getTime()
+                        - Date.now()
+                    ) / 1000
+                )
+            )
+
+            setRemainingSeconds(seconds)
+        }
+
+        updateRemaining()
+
+        const timer = window.setInterval(
+            updateRemaining,
+            1000
+        )
+
+        return () => window.clearInterval(timer)
+    }, [
+        reservation?.expires_at,
+        reservation?.status
+    ])
 
     if (!reservation) {
         return (
@@ -93,7 +135,6 @@ export default function Page() {
         )
     }
 
-    const canUsePoints = pointBalance !== null && pointBalance >= POINT_REDEEM_COST
 
     return (
         <Container sx={{ marginTop: 4}}>
@@ -118,11 +159,36 @@ export default function Page() {
                 </CardContent>
             </Card>
 
+            {remainingSeconds !== null && (
+                <Alert
+                    severity={
+                        remainingSeconds === 0
+                            ? "error"
+                            : "warning"
+                    }
+                    sx={{ mb: 2 }}
+                >
+                    {remainingSeconds === 0
+                        ? "予約の有効期限が切れました。"
+                        : `この予約はあと${
+                            Math.floor(
+                                remainingSeconds / 60
+                            )
+                        }分${
+                            remainingSeconds % 60
+                        }秒で期限切れになります。`
+                    }
+                </Alert>
+            )}
+
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <Button
                     variant="contained"
                     size="large"
-                    disabled={submitting}
+                    disabled={
+                        submitting
+                        || remainingSeconds === 0
+                    }
                     onClick={() => handlePayment('cash')}
                 >
                     現金で支払う
@@ -131,7 +197,10 @@ export default function Page() {
                 <Button
                     variant="outlined"
                     size="large"
-                    disabled={submitting || !canUsePoints}
+                    disabled={submitting 
+                        || !canUsePoints
+                        || remainingSeconds === 0
+                    }
                     onClick={() => handlePayment('point')}
                 >
                     ポイントで交換する({POINT_REDEEM_COST}pt消費)

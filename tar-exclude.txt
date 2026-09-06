@@ -28,3 +28,6 @@ staticfiles
 .mypy_cache
 coverage
 .next
+cookies.txt 
+staff_cookie.txt
+admin_cookies.txt

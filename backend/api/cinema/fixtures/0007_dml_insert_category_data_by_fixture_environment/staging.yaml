@@ -1,4 +1,0 @@
-- model: cinema.Category
-  fields:
-    name: ステージング
-    parent_category: null

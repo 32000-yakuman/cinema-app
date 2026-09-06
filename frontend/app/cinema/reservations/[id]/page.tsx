@@ -38,6 +38,7 @@ type ReservationData = {
     payment_status_display: string;
     checkin_token: string | null;
     checked_in_at: string | null;
+    expires_at: string | null;
 }
 
 

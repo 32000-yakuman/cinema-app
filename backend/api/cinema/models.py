@@ -1,5 +1,7 @@
 from django.db import models, transaction
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 import uuid
 
 
@@ -99,6 +101,7 @@ class Reservation(models.Model):
     showtime = models.ForeignKey(Showtime, on_delete=models.PROTECT)
     reserved_at = models.DateTimeField(auto_now_add=True, verbose_name="予約日時")
     total_price = models.PositiveIntegerField(verbose_name="合計金額")
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="有効期限")
     checked_in_at = models.DateTimeField(null=True, blank=True, verbose_name="来場確認日時")
 
     # チェックインQRコード用トークン
@@ -114,10 +117,12 @@ class Reservation(models.Model):
         CONFIRMED ="confirmed", "確定"
         CANCELLED = "cancelled",  "キャンセル"
 
-    status = models.CharField(max_length=20,
-                                choices=Status.choices,
-                                default=Status.PENDING,
-                                verbose_name='予約状態')
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name='予約状態'
+    )
 
     class Meta:
         db_table = 'reservation'
@@ -166,6 +171,9 @@ class InvalidSeatSelection(Exception):
 @transaction.atomic
 def create_reservation(user, showtime, seat_ids):
     seat_ids = list(seat_ids)
+
+    expire_pending_reservations(showtime=showtime)
+
     seats = list(Seat.objects.select_for_update().filter(id__in=seat_ids))
 
     # ⓵ 存在しないseat_idが混ざっていないのか
@@ -189,7 +197,8 @@ def create_reservation(user, showtime, seat_ids):
         )
 
     reservation = Reservation.objects.create(
-        user=user, showtime=showtime, status=Reservation.Status.PENDING, total_price=0
+        user=user, showtime=showtime, status=Reservation.Status.PENDING, total_price=0,
+        expires_at=(timezone.now() + timedelta(minutes=settings.RESERVATION_HOLD_MINUTES)),
     )
     # 金額の初期化
     total = 0
@@ -201,6 +210,56 @@ def create_reservation(user, showtime, seat_ids):
     reservation.total_price = total
     reservation.save()
     return reservation
+
+@transaction.atomic
+def expire_pending_reservations(showtime=None, showtime_id=None, user=None):
+    """
+    有効期限を過ぎたPENDING予約をキャンセル扱いにし、
+    座席を解放する。
+
+    呼び出し側がtransaction.atomic()内でも安全に使えるよう、
+    この関数自身もatomicにする。
+    """
+    now = timezone.now()
+
+    queryset = Reservation.objects.select_for_update().filter(
+        status=Reservation.Status.PENDING,
+        expires_at__isnull=False,
+        expires_at__lte=now,
+    )
+
+    if showtime is not None:
+        queryset = queryset.filter(showtime=showtime)
+
+    elif showtime_id is not None:
+        queryset = queryset.filter(showtime_id=showtime_id)
+
+    if user is not None:
+        queryset = queryset.filter(user=user)
+
+    expired = list(queryset)
+
+    for reservation in expired:
+        reservation.status = Reservation.Status.CANCELLED
+        reservation.save(update_fields=["status"])
+
+        # 予約座席を削除して座席を解放
+        ReservationSeat.objects.filter(
+            reservation=reservation
+        ).delete()
+
+        # 現金決済を選択しただけの予約は
+        # PaymentもPENDINGなのでキャンセル扱いにする
+        payment = getattr(reservation, "payment", None)
+
+        if (
+            payment is not None
+            and payment.status == Payment.Status.PENDING
+        ):
+            payment.status = Payment.Status.CANCELLED
+            payment.save(update_fields=["status"])
+
+    return len(expired)
 
 class AlreadyCheckedIn(Exception):
     """

@@ -3,6 +3,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db import models, IntegrityError, transaction
 from django.db.models import ProtectedError
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
@@ -20,7 +21,7 @@ from .models import (
     UserPoint, SeatLimitExceeded,
     create_reservation, cancel_reservation,
     InvalidSeatSelection, AlreadyCheckedIn,
-    PaymentAlreadyConfirmed
+    PaymentAlreadyConfirmed, expire_pending_reservations
 )
 from .serializers import (
     TheaterSerializer, ScreenSerializer, SeatSerializer,
@@ -151,17 +152,24 @@ class SeatView(APIView):
         # showtimeが選択されたら、予約済み座席かどうかを表示
         showtime_id = request.query_params.get('showtime')
         if showtime_id:
+            expire_pending_reservations(
+                showtime_id=showtime_id
+            )
+
             reserved_seat_ids = set(
                 ReservationSeat.objects.filter(
                     showtime_id=showtime_id
-                ).values_list('seat_id', flat=True)
+                ).values_list(
+                    'seat_id', flat=True
+                )
             )
+
             for seat in data:
                 seat['is_reserved'] = seat['id'] in reserved_seat_ids
         else:
             for seat in data:
                 seat['is_reserved'] = False
-
+        
         return Response(data, status.HTTP_200_OK)
 
 
@@ -303,6 +311,7 @@ class ReservationView(APIView):
             ).order_by('-reserved_at')
             serializer = ReservationSerializer(queryset, many=True)
         else:
+            expire_pending_reservations(user=request.user)
             reservation = self.get_object(id, request.user)
             serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status.HTTP_200_OK)
@@ -322,6 +331,12 @@ class ReservationView(APIView):
             showtime = Showtime.objects.get(pk=showtime_id)
         except Showtime.DoesNotExist:
             raise NotFound('指定された上映回が見当たりません')
+
+        if showtime.start_time <= timezone.now():
+            return Response(
+                {"errMsg": "終了した上映回は予約できません"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             reservation = create_reservation(
