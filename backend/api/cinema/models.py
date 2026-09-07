@@ -278,33 +278,46 @@ class PaymentAlreadyConfirmed(Exception):
 # キャンセル時に予約座席を消去
 @transaction.atomic
 def cancel_reservation(reservation, allow_after_payment_confirmed=False):
+    reservation = (
+        Reservation.objects
+        .select_for_update()
+        .select_related("payment")
+        .get(pk=reservation.pk)
+    )
+
     if reservation.checked_in_at:
         raise AlreadyCheckedIn("チェックイン済みの予約はキャンセルできません")
 
     payment = getattr(reservation, "payment", None)
-    payment_was_confirmed = payment is not None and payment.status == Payment.Status.CONFIRMED
+    payment_was_confirmed = (
+        payment is not None 
+        and payment.status == Payment.Status.CONFIRMED
+    )
 
     if payment_was_confirmed and not allow_after_payment_confirmed:
         raise PaymentAlreadyConfirmed(
-            "決済確定済みの予約はキャンセルできません。窓口までお問い合わせください"
+            "決済確定済みの予約はキャンセルできません"
         )
 
     reservation.status = Reservation.Status.CANCELLED
-    reservation.save()
+    reservation.save(update_fields=["status"])
+
     ReservationSeat.objects.filter(reservation=reservation).delete()
 
-    # ポイント決済だったら、ポイントを返還
-    if payment_was_confirmed:
-        if payment.method == Payment.Method.POINT:        
-            user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=reservation.user)
-            user_point.balance += payment.points_used
-            user_point.save()
-            PointTransaction.objects.create(
-                user=reservation.user, reservation=reservation,
-                type=PointTransaction.Type.REFUND, amount=payment.points_used,
-            )
+    if payment:
+        if payment_was_confirmed:
+            if payment.method == Payment.Method.POINT:
+                user_point, _ = UserPoint.objects.select_for_update().get_or_create(user=reservation.user)
+                user_point.balance += payment.points_used
+                user_point.save()
+                PointTransaction.objects.create(
+                    user=reservation.user, reservation=reservation,
+                    type=PointTransaction.Type.REFUND, amount=payment.points_used,
+                )
         payment.status = Payment.Status.CANCELLED
-        payment.save()
+        payment.save(update_fields=["status"])
+
+    ReservationSeat.objects.filter(reservation=reservation).delete()
 
 
 class Payment(models.Model):

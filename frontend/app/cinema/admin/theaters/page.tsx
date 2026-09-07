@@ -146,7 +146,7 @@ export default function AdminTheatersPage() {
                 setDeleteTarget(null)
                 fetchTheaters()
             })
-            .catch(() => {
+            .catch((err) => {
                 setErrorMessage(
                     getApiErrorMessage(
                         err,

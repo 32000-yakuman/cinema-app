@@ -15,7 +15,9 @@ import {
     Typography,
 } from '@mui/material';
 import { Scanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 
 type StaffReservationSeat = {
     id: number;
@@ -42,13 +44,32 @@ type StaffReservation = {
 }
 
 export default function Page() {
+    const router = useRouter()
+    const [checking, setChecking] = useState(true)
     const [query, setQuery] = useState('')
     const [results, setResults] = useState<Array<StaffReservation>>([])
     const [message, setMessage] = useState('')
     const [errorMessage, setErrorMessage] = useState('')
     
 
-    // QRスキャナー関連
+    // 窓口職員(is_staff_member)以外はアクセス不可
+    useEffect(() => {
+        axios
+            .get("/api/cinema/me")
+            .then((res) => {
+                if (!res.data.is_staff_member) {
+                    router.replace("/cinema/movies/")
+                    return
+                }
+                setChecking(false)
+            })
+            .catch(() => {
+                router.replace("/login")
+            })
+    }, [router])
+
+
+    // QRスキャナー関連    
     const [isScanning, setIsScanning] = useState(false)
     const lastScannedTokenRef = useRef<string | null>(null)
 
@@ -90,7 +111,6 @@ export default function Page() {
         }
         lastScannedTokenRef.current = token    
         
-        
         axios.post('/api/cinema/staff/checkin-by-token/', { token })
             .then(() => {
                 setMessage('チェックインしました')
@@ -108,6 +128,10 @@ export default function Page() {
             })
     }
 
+    
+    if (checking) {
+        return null
+    }
 
     return (
         <Container sx={{ marginTop: 4 }}>

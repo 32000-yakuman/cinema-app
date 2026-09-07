@@ -24,6 +24,11 @@ class TheaterSerializer(serializers.ModelSerializer):
 class ScreenSerializer(serializers.ModelSerializer):
     theater_name = serializers.CharField(source='theater.name', read_only=True)
 
+    def validate_row_count(self, value):
+        if value > 26:
+            raise serializers.ValidationError("座席の行数は26以下にしてください")
+        return value
+
     def update(self, instance, validated_data):
         row_count = validated_data.get("row_count", instance.row_count)
         col_count = validated_data.get("col_count", instance.col_count)
@@ -63,17 +68,14 @@ class ScreenSerializer(serializers.ModelSerializer):
         fields = ['id', 'theater', 'theater_name', 'name', 'row_count', 'col_count']
 
     def create(self, validated_data):
-        screen = Screen.objects.create(**validated_data)
-        self._generate_seats(screen)
+        with transaction.atomic():
+            screen = Screen.objects.create(**validated_data)
+            self._generate_seats(screen)
         return screen
 
     def _generate_seats(self, screen):
         import string
-
-        if screen.row_count > 26:
-            raise serializers.ValidationError(
-            {"row_count": "座席の行数は26以下にしてください"}
-        )
+        
 
         seats = [
             Seat(
@@ -401,6 +403,11 @@ class PaymentConfirmSerializer(serializers.Serializer):
             if payment.status != Payment.Status.PENDING:
                 raise serializers.ValidationError(
                     "この決済はすでに確定済み、またはキャンセル済みです"
+                )
+            
+            if reservation.status != Reservation.Status.PENDING:
+                raise serializers.ValidationError(
+                    "この予約は決済を確定できる状態ではありません"
                 )
 
             # 期限切れチェック

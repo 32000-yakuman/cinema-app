@@ -98,13 +98,15 @@ export default function Page() {
             return
         }
 
+        const expiresAt = reservation.expires_at
+
         const updateRemaining = () => {
             const seconds = Math.max(
                 0,
                 Math.ceil(
                     (
                         new Date(
-                            reservation.expires_at
+                            expiresAt
                         ).getTime()
                         - Date.now()
                     ) / 1000
