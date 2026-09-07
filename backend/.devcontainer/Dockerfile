@@ -18,9 +18,9 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Python の依存関係を先にコピーしてインストール
-COPY requirements.txt /app/
+COPY requirements.lock /app/
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.lock
 
 # アプリケーションコードをコピー
 COPY . /app/
