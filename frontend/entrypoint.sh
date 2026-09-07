@@ -7,5 +7,11 @@ if [ "$NODE_ENV" = "production" ]; then
     npm run start
 else
     echo "Starting in DEVELOPMENT mode (next dev)"
+
+    if [ ! -x /app/node_modules/.bin/next ]; then
+        echo "node_modules is empty. Installing dependencies..."
+        npm ci
+    fi
+
     npm run dev
 fi

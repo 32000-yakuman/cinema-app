@@ -1,7 +1,7 @@
-# 在庫管理システム
+# 映画館Webサイト
 
 ## 概要
-Django + Next.js + MySQL による在庫管理アプリケーション
+Django + Next.js + MySQL による映画館サイト
 
 ## 構成
 - backend: Django REST Framework
