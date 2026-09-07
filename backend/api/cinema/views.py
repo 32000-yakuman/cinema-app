@@ -700,7 +700,7 @@ class AdminUserDetailView(APIView):
                 status.HTTP_400_BAD_REQUEST
             )
         serializer = AdminUserSerializer(
-            instance=user, data=request.data
+            instance=user, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
