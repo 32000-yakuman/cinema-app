@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "在庫管理システム",
-  description: "商品・在庫・売上を管理するアプリケーション",
+  title: "映画館システム",
+  description: "映画館で上映中の映画の閲覧・予約・決算を管理するアプリケーション",
 };
 
 export default function RootLayout({

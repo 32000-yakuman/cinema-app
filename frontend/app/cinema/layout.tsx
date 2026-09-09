@@ -18,7 +18,7 @@ import {
     Toolbar,
     Typography,
 } from "@mui/material";
-import { Logout as LogoutIcon, Menu as MenuIcon, MovieSharp } from "@mui/icons-material"
+import { Logout as LogoutIcon, Menu as MenuIcon } from "@mui/icons-material"
 import axios from "../../plugins/axios"
 
 const defaultTheme = createTheme ({
@@ -38,6 +38,7 @@ type Movie = {
 export default function CinemaLayout({ children } : { children: React.ReactNode }) {
     const [open, setOpen] = useState(false)
     const [isLoggedIn, setIsLoggedIn] = useState(false)
+    const [isStaffMember, setIsStaffMember] = useState(false)
     const [movies, setMovies] = useState<Movie[]>([])
     const router = useRouter()
 
@@ -45,8 +46,14 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
     useEffect(() => {
         axios
             .get("/api/cinema/me/", { withCredentials: true })
-            .then(() => setIsLoggedIn(true))
-            .catch(() => setIsLoggedIn(false))
+            .then((res) => {
+                setIsLoggedIn(true)
+                setIsStaffMember(res.data.is_staff_member)
+            })
+            .catch(() => {
+                setIsLoggedIn(false)
+                setIsStaffMember(false)
+            })
     }, [])
 
     // 上映中の映画一覧の取得
@@ -69,34 +76,49 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
         } catch(error) {
             console.error(error)
         }
-
     }
 
     const toggleDrawer = (open: boolean) => {
         setOpen(open)
     }
 
+
     const list = () => (
         <Box sx={{ width: 240 }}>
             <Toolbar />
             <Divider />
             <List>
-                <ListItem component="a" href="/cinema/mypage/" disablePadding>
-                    <ListItemButton>
-                        <ListItemText primary="マイページ" />
-                    </ListItemButton>
-                </ListItem>
-                <ListItem component="a" href="/cinema/reservations/" disablePadding>
-                    <ListItemButton>
-                        <ListItemText primary="予約履歴" />
-                    </ListItemButton>
-                </ListItem>
+                {isStaffMember ? (
+                    <>
+                        <ListItem component="a" href="/cinema/staff/reservations/" disablePadding>
+                            <ListItemButton>
+                                <ListItemText primary="窓口: 予約検索" />    
+                            </ListItemButton>
+                        </ListItem>
+                    </>
+                ) : (
+                    <>
+                        <ListItem component="a" href="/cinema/mypage/" disablePadding>
+                            <ListItemButton>
+                                <ListItemText primary="マイページ" />
+                            </ListItemButton>
+                        </ListItem>
+                        <ListItem component="a" href="/cinema/reservations/" disablePadding>
+                            <ListItemButton>
+                                <ListItemText primary="予約履歴" />
+                            </ListItemButton>
+                        </ListItem>
+                    </>
+                )}
+                
                 <ListItem component="a" href="/cinema/movies/" disablePadding>
                     <ListItemButton>
                         <ListItemText primary="上映中の映画一覧" />
                     </ListItemButton>
                 </ListItem>
+
                 <Divider />
+
                 {movies.map((movie) => (
                     <ListItem key={movie.id} component="a" href={`/cinema/movies/${movie.id}/showtimes/`} disablePadding>
                         <ListItemButton>
@@ -104,6 +126,7 @@ export default function CinemaLayout({ children } : { children: React.ReactNode 
                         </ListItemButton>
                     </ListItem>
                 ))}
+
                 <Divider />
             </List>
         </Box>
