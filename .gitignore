@@ -81,3 +81,6 @@ cookies.txt
 staff_cookie.txt
 admin_cookie.txt
 admin_cookies.txt
+
+# certbot(Let's Encryptの証明書・アカウント情報。ローカルのダミー証明書も含む)
+certbot/
