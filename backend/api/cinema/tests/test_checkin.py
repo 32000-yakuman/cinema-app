@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
@@ -33,8 +34,8 @@ class CheckInByTokenTests(TestCase):
         )
         self.showtime = Showtime.objects.create(
             movie=movie, screen=screen,
-            start_time=timezone.now(),
-            end_time=timezone.now(),
+            start_time=timezone.now() + timedelta(hours=1),
+            end_time=timezone.now() + timedelta(hours=3),
             base_price=1500,
         )
 
