@@ -333,11 +333,15 @@ class PaymentCreateSerializer(serializers.Serializer):
                     amount=reservation.total_price,
                     points_used=POINT_REDEEM_COST,
                     confirmed_at=timezone.now(),
+                    paid_at = timezone.now(),
                 )
 
                 reservation.status = Reservation.Status.CONFIRMED
                 reservation.save(
-                    update_fields=["status"]
+                    update_fields=[
+                        "status",
+                        "paid_at",
+                    ]
                 )
 
             else:
@@ -438,12 +442,14 @@ class PaymentConfirmSerializer(serializers.Serializer):
             payment.status = Payment.Status.CONFIRMED
             payment.confirmed_by = staff_user
             payment.confirmed_at = timezone.now()
+            payment.paid_at = timezone.now() 
 
             payment.save(
                     update_fields=[
                         "status",
                         "confirmed_by",
                         "confirmed_at",
+                        "paid_at",
                     ]
             )
 

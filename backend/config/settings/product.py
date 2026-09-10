@@ -27,7 +27,7 @@ JWT_COOKIE_SAMESITE = "Lax"
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30  # 30日。安定稼働を確認後、1年(31536000)まで伸ばす想定
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+SECURE_HSTS_PRELOAD = False # 安定運用できたらTrueに
  
 # 本番ではDEBUGレベルのアプリログを出さない(リクエスト内容等の漏えい防止)
 LOGGING["loggers"]["api.cinema"]["level"] = "INFO"

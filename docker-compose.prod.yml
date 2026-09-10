@@ -34,7 +34,6 @@ services:
     environment:
       MYSQL_USER: cinema_user
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: cinema_db
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.product}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}

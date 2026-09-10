@@ -6,8 +6,8 @@ echo "Waiting for MySQL..."
 until mysql \
   --skip-ssl \
   -h app-db \
-  -u root \
-  -p"$MYSQL_ROOT_PASSWORD" \
+  -u "$MYSQL_USER" \
+  -p"$MYSQL_PASSWORD" \
   -e "SELECT 1" > /dev/null 2>&1
 do
     sleep 2
