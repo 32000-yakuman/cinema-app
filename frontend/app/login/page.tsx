@@ -14,14 +14,14 @@ import {
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 
 type FormData = {
     username: string;
     password: string;
 };
 
-export default function Page() {   
+function LoginForm() {   
     const {
         register,
         handleSubmit,
@@ -139,5 +139,13 @@ export default function Page() {
                 </Box>
             </Container>
         </ThemeProvider>
+    );
+}
+
+export default function Page() {
+    return (
+        <Suspense fallback={null}>
+            <LoginForm />
+        </Suspense>
     );
 }
