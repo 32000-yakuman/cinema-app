@@ -11,8 +11,14 @@
 
 set -e
 
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
 domain="ghostly-field-theater.com"
-email="your-email@example.com"   # 有効期限切れ通知が届くメールアドレスに変更してください
+email=${MY_EMAIL_ADDRESS}   # 有効期限切れ通知が届くメールアドレスに変更してください
 data_path="./certbot"
 rsa_key_size=4096
 
@@ -25,7 +31,7 @@ fi
 
 echo "### ダミー証明書を作成しています ..."
 mkdir -p "$data_path/conf/live/$domain"
-docker compose run --rm --entrypoint "\
+docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
   openssl req -x509 -nodes -newkey rsa:$rsa_key_size -days 1\
     -keyout '/etc/letsencrypt/live/$domain/privkey.pem' \
     -out '/etc/letsencrypt/live/$domain/fullchain.pem' \
@@ -33,18 +39,18 @@ docker compose run --rm --entrypoint "\
 echo
 
 echo "### nginxを起動しています ..."
-docker compose up --force-recreate -d nginx
+docker compose -f docker-compose.prod.yml up --force-recreate -d nginx
 echo
 
 echo "### ダミー証明書を削除しています ..."
-docker compose run --rm --entrypoint "\
+docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
   rm -Rf /etc/letsencrypt/live/$domain && \
   rm -Rf /etc/letsencrypt/archive/$domain && \
   rm -Rf /etc/letsencrypt/renewal/$domain.conf" certbot
 echo
 
 echo "### Let's Encryptに本物の証明書を要求しています ..."
-docker compose run --rm --entrypoint "\
+docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
   certbot certonly --webroot -w /var/www/certbot \
     --email $email \
     -d $domain \
@@ -55,4 +61,4 @@ docker compose run --rm --entrypoint "\
 echo
 
 echo "### nginxを再読み込みしています ..."
-docker compose exec nginx nginx -s reload
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
