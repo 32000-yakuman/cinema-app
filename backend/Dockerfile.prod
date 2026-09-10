@@ -8,6 +8,9 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        default-mysql-client \
+       default-libmysqlclient-dev \
+       pkg-config \
+       build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.lock .
