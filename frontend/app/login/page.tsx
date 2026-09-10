@@ -131,7 +131,12 @@ function LoginForm() {
                         </Button>
 
                         <Typography variant="body2">
-                            アカウントをお持ちでない方は{' '}
+                            映画一覧は{' '}
+                            <Link href="/cinema/movies/">こちら</Link>
+                        </Typography>
+
+                        <Typography variant="body2">
+                            アカウント作成は{' '}
                             <Link href="/register">こちら</Link>
                         </Typography>
 
