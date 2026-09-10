@@ -5,6 +5,8 @@ const axios_instance = axios.create({
     baseURL: '',
 })
 
+let refreshPromise: Promise<any> | null = null
+
 axios_instance.interceptors.request.use(
     function (config) {
         return config
@@ -48,17 +50,14 @@ axios_instance.interceptors.response.use(
         }
 
         try {
-            // Refresh Tokenを使用してAccess Tokenを更新
-            await axios_instance.post(
-                "/api/cinema/retry/",
-                {}
-            )
+            if (!refreshPromise) {
+                refreshPromise = axios_instance.post("/api/cinema/retry/", {})
+                    .finally(() => { refreshPromise = null })
+            }
+            await refreshPromise
 
-            // リフレッシュ成功後、リクエストを再送
             return axios_instance(originalRequest)
-
         } catch (refreshError) {
-
             return Promise.reject(refreshError)
         }
     }
