@@ -3,8 +3,14 @@ set -e
 
 echo "Waiting for MySQL..."
 
-until mysql --skip-ssl -h app-db -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "select 1" > /dev/null 2>&1; do
-  sleep 2
+until mysql \
+  --skip-ssl \
+  -h app-db \
+  -u "$MYSQL_USER" \
+  -p"$MYSQL_PASSWORD" \
+  -e "select 1" > /dev/null 2>&1; 
+do
+    sleep 2
 done
 
 echo "MySQL is ready."
