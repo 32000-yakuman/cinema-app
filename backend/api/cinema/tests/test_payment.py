@@ -7,7 +7,7 @@ from rest_framework import status
 
 from api.cinema.models import (
     Theater, Screen, Movie, Showtime,
-    Reservation, Payment,
+    Reservation, Payment, UserPoint,
 )
 
 User = get_user_model()
@@ -100,3 +100,72 @@ class PaymentConfirmViewTests(TestCase):
         # ④ 無関係な予約(decoy_reservation)は一切変化していないこと。
         #    修正前のバグではここが誤ってCONFIRMEDになっていた。
         self.assertEqual(decoy_reservation.status, Reservation.Status.PENDING)
+
+class ReservationPaymentViewTests(TestCase):
+    """
+    ReservationPaymentView(決済方法の選択)の回帰テスト。
+
+    現金決済を選んだ時点で、上映開始まで座席を確保できるよう
+    Reservation.expires_atがNoneにクリアされることを確認する。
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+
+        self.customer = User.objects.create_user(
+            username="customer-user", password="test-password"
+        )
+
+        theater = Theater.objects.create(name="テスト劇場", address="テスト住所")
+        screen = Screen.objects.create(
+            theater=theater, name="スクリーン1", row_count=5, col_count=5
+        )
+        movie = Movie.objects.create(
+            title="テスト映画", duration_minutes=120,
+            release_date=timezone.now().date(),
+        )
+        self.showtime = Showtime.objects.create(
+            movie=movie, screen=screen,
+            start_time=timezone.now() + timedelta(hours=1),
+            end_time=timezone.now() + timedelta(hours=3),
+            base_price=1500,
+        )
+
+        self.reservation = Reservation.objects.create(
+            user=self.customer,
+            showtime=self.showtime,
+            total_price=1500,
+            status=Reservation.Status.PENDING,
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+
+        self.client.force_authenticate(user=self.customer)
+
+    def test_cash_payment_clears_expires_at(self):
+        """現金決済を選択すると、expires_atがNoneにクリアされ
+        座席が上映開始まで確保され続けること"""
+        response = self.client.post(
+            f"/api/cinema/reservations/{self.reservation.pk}/payment/",
+            {"method": "cash"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.reservation.refresh_from_db()
+        self.assertIsNone(self.reservation.expires_at)
+        self.assertEqual(self.reservation.status, Reservation.Status.PENDING)
+
+    def test_point_payment_does_not_touch_expires_at_handling(self):
+        """ポイント決済はstatusがCONFIRMEDになるため、
+        expires_atの値にかかわらずexpire_pending_reservationsの対象外になること"""
+        UserPoint.objects.create(user=self.customer, balance=10)
+
+        response = self.client.post(
+            f"/api/cinema/reservations/{self.reservation.pk}/payment/",
+            {"method": "point"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.reservation.refresh_from_db()
+        self.assertEqual(self.reservation.status, Reservation.Status.CONFIRMED)
