@@ -166,7 +166,7 @@ export default function ReservationsPage() {
     const canPay = (reservation: Reservation) => {
         return (
             reservation.status !== "cancelled" &&
-            (reservation.payment_status === "pending" || reservation.payment_status === null)
+            reservation.payment_status === null
         )
     }
 
