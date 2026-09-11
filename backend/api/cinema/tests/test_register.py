@@ -3,6 +3,8 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 
+from api.cinema.models import UserPoint, PointTransaction
+
 User = get_user_model()
 
 
@@ -91,3 +93,38 @@ class RegisterViewTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("username", response.data)
+
+    def test_register_success_grants_signup_bonus_points(self):
+        """登録成功時にUserPointが作成され、5ptが付与されること。
+        あわせてPointTransactionにも付与履歴(EARN, +5)が1件残ること"""
+        response = self.client.post(
+            self.url,
+            {"username": "bonus-user", "password": "correct-horse-battery-staple"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        user = User.objects.get(username="bonus-user")
+
+        user_point = UserPoint.objects.get(user=user)
+        self.assertEqual(user_point.balance, 5)
+
+        transactions = PointTransaction.objects.filter(user=user)
+        self.assertEqual(transactions.count(), 1)
+        transaction = transactions.first()
+        self.assertEqual(transaction.type, PointTransaction.Type.EARN)
+        self.assertEqual(transaction.amount, 5)
+        self.assertIsNone(transaction.reservation)
+
+def test_register_failure_does_not_create_user_point(self):
+    """登録が400で失敗した場合、UserPointも作られないこと
+    (transaction.atomicでUser作成とポイント付与が一体になっていることの確認)"""
+    User.objects.create_user(username="taken-user", password="whatever-password")
+
+    response = self.client.post(
+        self.url,
+        {"username": "taken-user", "password": "correct-horse-battery-staple"},
+        format="json",
+    )
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertFalse(UserPoint.objects.filter(user__username="taken-user").exists())

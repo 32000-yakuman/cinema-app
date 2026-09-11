@@ -512,20 +512,38 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("このユーザー名は既に使われています")
         return value
 
-    def validate_password(self, value):
+    def validate(self, attrs):
+        # ユーザー名との類似チェックのため、仮のUserインスタンスを組み立てて渡す
+        temp_user = User(
+            username=attrs.get("username", ""),
+            first_name=attrs.get("first_name", ""),
+            last_name=attrs.get("last_name", ""),
+        )
         try:
-            django_validate_password(value)
+            django_validate_password(attrs["password"], user=temp_user)
         except DjangoValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
-        return value
+            raise serializers.ValidationError({"password": list(e.messages)})
+        return attrs
+
+    SIGNUP_BONUS_POINTS = 5
 
     def create(self, validated_data):
-        return User.objects.create_user(
-            username=validated_data["username"],
-            password=validated_data["password"],
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),
-        )
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=validated_data["username"],
+                password=validated_data["password"],
+                first_name=validated_data.get("first_name", ""),
+                last_name=validated_data.get("last_name", ""),
+            )
+
+            bonus_points = self.SIGNUP_BONUS_POINTS
+            UserPoint.objects.create(user=user, balance=bonus_points)
+            PointTransaction.objects.create(
+                user=user,
+                type=PointTransaction.Type.EARN,
+                amount=bonus_points,
+            )
+        return user
 
 class AdminMovieSerializer(serializers.ModelSerializer):
     class Meta:
