@@ -22,9 +22,6 @@ services:
       context: ./frontend
       dockerfile: .devcontainer/Dockerfile
     restart: unless-stopped
-    volumes: 
-      - ./frontend:/app 
-      - node_modules_volume:/app/node_modules
     environment:
       NODE_ENV: ${NODE_ENV:-development}
     depends_on:
@@ -38,7 +35,6 @@ services:
     depends_on:
       app-db:
         condition: service_healthy
-    volumes: - ./backend:/app
     environment:
       MYSQL_USER: cinema_user
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
