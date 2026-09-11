@@ -56,6 +56,9 @@ export default function Page() {
         axios.get(`/api/cinema/reservations/${reservationId}/`)
             .then((res) => res.data)
             .then((data) => { setReservation(data) })
+            .catch((err) => {
+                setErrorMessage(getApiErrorMessage(err, '予約情報の取得に失敗しました。予約一覧からやり直してください。'))
+            })
     }
 
     const fetchPoints = () => {
@@ -133,6 +136,14 @@ export default function Page() {
         return (
             <Container>
                 <Typography>読み込み中</Typography>
+                {errorMessage && (
+                    <>
+                        <Alert severity="error" sx={{ mt: 2 }}>{errorMessage}</Alert>
+                        <Button sx={{ mt: 2 }} onClick={() => router.push('/cinema/reservations/')}>
+                            予約一覧に戻る
+                        </Button>
+                    </>
+                )}
             </Container>
         )
     }
