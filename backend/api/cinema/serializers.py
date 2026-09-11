@@ -323,7 +323,7 @@ class PaymentCreateSerializer(serializers.Serializer):
                     user=user,
                     reservation=reservation,
                     type=PointTransaction.Type.REDEEM,
-                    amount=POINT_REDEEM_COST,
+                    amount=-POINT_REDEEM_COST,
                 )
 
                 payment = Payment.objects.create(
@@ -338,10 +338,7 @@ class PaymentCreateSerializer(serializers.Serializer):
 
                 reservation.status = Reservation.Status.CONFIRMED
                 reservation.save(
-                    update_fields=[
-                        "status",
-                        "paid_at",
-                    ]
+                    update_fields=["status"]
                 )
 
             else:
@@ -351,6 +348,8 @@ class PaymentCreateSerializer(serializers.Serializer):
                     status=Payment.Status.PENDING,
                     amount=reservation.total_price,
                 )
+                reservation.expires_at = None
+                reservation.save(update_fields=["expires_at"])
 
         return payment
 
