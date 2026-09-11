@@ -55,6 +55,9 @@ export default function Page() {
         axios.get(`/api/cinema/reservations/${reservationId}/`)
             .then((res) => res.data)
             .then((data) => { setReservation(data) })
+            .catch((err) => {
+                setErrorMessage(getApiErrorMessage(err, '予約情報の取得に失敗しました。'))
+            })
         }
 
 
@@ -116,6 +119,14 @@ export default function Page() {
                     {reservation.status !== 'cancelled' && (
                         <>
                             <Divider sx={{ marginY: 2 }} />
+                            {reservation.payment_status === 'pending' && (
+                                <Alert severity="info" sx={{ mt: 2 }}>
+                                    スタッフによる承認待ちです。劇場窓口にてお会計をお済ませください。                                   
+                                    <br />
+                                    座席は上映開始までお取り置きします。
+                                </Alert>
+                            )}
+
                             {reservation.checkin_token ? (
                                 <Box sx={{ textAlign: "center" }}>
                                     <Typography variant="body2" color="text.secondary" gutterBottom>
